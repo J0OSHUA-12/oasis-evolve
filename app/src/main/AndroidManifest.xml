@@ -22,6 +22,13 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.HOME" />
         </intent>
+        <!-- Marcador y cámara predeterminados, para la composición inicial del dock. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
+        </intent>
         <!-- Paquetes de iconos con el formato habitual de los launchers. -->
         <intent>
             <action android:name="org.adw.launcher.THEMES" />

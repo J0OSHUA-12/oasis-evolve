@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -19,6 +20,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +62,7 @@ fun LibraryScreen(
     viewModel: LauncherViewModel,
     isCurrentPage: Boolean,
     onLongPress: (AppEntry) -> Unit,
+    onSettings: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     var openCategory by remember { mutableStateOf<String?>(null) }
@@ -103,7 +110,7 @@ fun LibraryScreen(
 
         when {
             query.isNotBlank() -> AppGrid(filterBySearch(apps, query) { it.label }, state, viewModel, onLongPress)
-            settings.libraryExpanded -> ExpandedLibrary(groups, state, viewModel, onLongPress)
+            settings.libraryExpanded -> ExpandedLibrary(groups, state, viewModel, onLongPress, onSettings)
             opened != null -> {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -127,6 +134,7 @@ fun LibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 28.dp),
             ) {
+                item(key = "settings") { SettingsCard(onSettings) }
                 items(groups, key = { it.first }) { (name, categoryApps) ->
                     CategoryCard(name, categoryApps, viewModel) { openCategory = name }
                 }
@@ -146,6 +154,7 @@ private fun ExpandedLibrary(
     state: LauncherState,
     viewModel: LauncherViewModel,
     onLongPress: (AppEntry) -> Unit,
+    onSettings: () -> Unit,
 ) {
     val settings = state.settings
     val grid = rememberLazyGridState()
@@ -164,6 +173,7 @@ private fun ExpandedLibrary(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(bottom = 28.dp),
     ) {
+        item(key = "settings", span = { GridItemSpan(maxLineSpan) }) { SettingsCard(onSettings) }
         groups.forEach { (name, apps) ->
             item(key = HEADER_PREFIX + name, span = { GridItemSpan(maxLineSpan) }) {
                 val isTarget = hoverCategory == name && reorder.draggingKey != null
@@ -201,6 +211,19 @@ private fun ExpandedLibrary(
                 )
             }
         }
+    }
+}
+
+/** Acceso a los ajustes del launcher: el primer elemento de la última pantalla. */
+@Composable
+private fun SettingsCard(onSettings: () -> Unit) {
+    GlassCard(
+        Modifier
+            .clickable(onClick = onSettings)
+            .semantics { contentDescription = "Ajustes de Oasis Evolve" },
+    ) {
+        Icon(Icons.Outlined.Settings, contentDescription = null, modifier = Modifier.size(44.dp))
+        Text("Ajustes", style = MaterialTheme.typography.labelLarge)
     }
 }
 

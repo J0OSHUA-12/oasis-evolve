@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.os.Build
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -43,19 +44,21 @@ import com.oasisevolve.launcher.drawer.DrawerScreen
 import com.oasisevolve.launcher.focus.InterruptionScreen
 import com.oasisevolve.launcher.home.AppActionsSheet
 import com.oasisevolve.launcher.home.AppPickerSheet
+import com.oasisevolve.launcher.home.DOCK_TOTAL_HEIGHT
+import com.oasisevolve.launcher.home.DockIconSheet
 import com.oasisevolve.launcher.home.FolderOverlay
-import com.oasisevolve.launcher.home.HomeMenuSheet
-import com.oasisevolve.launcher.home.HomeScreen
+import com.oasisevolve.launcher.home.GridDragController
+import com.oasisevolve.launcher.home.GridScreen
 import com.oasisevolve.launcher.library.LibraryScreen
 import com.oasisevolve.launcher.settings.SettingsScreen
+import com.oasisevolve.launcher.storage.GridTarget
 import com.oasisevolve.launcher.storage.WidgetTarget
 import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.ui.EvolveTheme
 import com.oasisevolve.launcher.ui.LocalWallpaperContent
-import com.oasisevolve.launcher.useful.UsefulScreen
 import com.oasisevolve.launcher.wellbeing.WellbeingScreen
 import com.oasisevolve.launcher.widgets.WidgetCenterScreen
-import com.oasisevolve.launcher.widgets.WidgetPickerSheet
+import com.oasisevolve.launcher.widgets.WidgetGallerySheet
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
@@ -75,7 +78,7 @@ private const val GLASS_BLUR_RADIUS = 60
 fun LauncherRoot(
     viewModel: LauncherViewModel,
     homeRequests: Flow<Unit>,
-    onPickWidget: (AppWidgetProviderInfo, WidgetTarget) -> Unit,
+    onPickWidget: (AppWidgetProviderInfo, WidgetTarget, Int, Int) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val gate by viewModel.gate.collectAsStateWithLifecycle()
@@ -86,36 +89,49 @@ fun LauncherRoot(
     val scope = rememberCoroutineScope()
 
     var showSettings by remember { mutableStateOf(false) }
-    var showHomeMenu by remember { mutableStateOf(false) }
-    var editingHomeWidgets by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<GridTarget?>(null) }
     var actionsFor by remember { mutableStateOf<AppEntry?>(null) }
-    var pickerFor by remember { mutableStateOf<AppList?>(null) }
-    var widgetPickerFor by remember { mutableStateOf<WidgetTarget?>(null) }
+    var dockMenuFor by remember { mutableStateOf<AppEntry?>(null) }
+    var dockReplaceFor by remember { mutableStateOf<AppEntry?>(null) }
+    var pickerFor by remember { mutableStateOf<GridTarget?>(null) }
+    var folderPickerFor by remember { mutableStateOf<Long?>(null) }
+    var galleryFor by remember { mutableStateOf<WidgetTarget?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     val openFolder = openFolderId?.let(state::folder)?.takeIf { it.apps.isNotEmpty() }
+    val homeDrag = remember { GridDragController() }
+    val usefulDrag = remember { GridDragController() }
 
-    fun goHome() {
+    fun goTo(page: Int) {
         scope.launch {
-            if (settings.reduceMotion) pager.scrollToPage(HOME) else pager.animateScrollToPage(HOME)
+            if (settings.reduceMotion) pager.scrollToPage(page) else pager.animateScrollToPage(page)
         }
     }
 
     LaunchedEffect(homeRequests) {
         homeRequests.collect {
             showSettings = false
-            showHomeMenu = false
-            editingHomeWidgets = false
+            editing = null
             actionsFor = null
+            dockMenuFor = null
+            dockReplaceFor = null
             pickerFor = null
-            widgetPickerFor = null
+            folderPickerFor = null
+            galleryFor = null
             openFolderId = null
             viewModel.dismissGate()
-            goHome()
+            goTo(HOME)
         }
     }
 
     LaunchedEffect(pager.settledPage) {
         if (pager.settledPage == WELLBEING) viewModel.refreshUsage()
+        // Al cambiar de pantalla se termina la edición de la anterior.
+        val current = when (pager.settledPage) {
+            HOME -> GridTarget.HOME
+            USEFUL -> GridTarget.USEFUL
+            else -> null
+        }
+        if (editing != current) editing = null
     }
 
     // Android solo desenfoca la ventana entera: se aplica fuera de inicio, donde el fondo es protagonista.
@@ -135,16 +151,22 @@ fun LauncherRoot(
     }
 
     BackHandler(
-        enabled = gate != null || openFolder != null || showSettings || editingHomeWidgets || pager.currentPage != HOME,
+        enabled = gate != null || openFolder != null || showSettings || editing != null || pager.currentPage != HOME,
     ) {
         when {
             gate != null -> viewModel.dismissGate()
             openFolder != null -> openFolderId = null
             showSettings -> showSettings = false
-            editingHomeWidgets -> editingHomeWidgets = false
-            else -> goHome()
+            editing != null -> editing = null
+            else -> goTo(HOME)
         }
     }
+
+    val isBusyOnGrid = editing != null || homeDrag.isDragging || usefulDrag.isDragging
+    val indicatorPadding by animateDpAsState(
+        if (pager.currentPage == HOME && settings.showDock) DOCK_TOTAL_HEIGHT else 6.dp,
+        label = "indicator",
+    )
 
     EvolveTheme(settings, iconRevision) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
@@ -160,6 +182,7 @@ fun LauncherRoot(
                 HorizontalPager(
                     state = pager,
                     beyondViewportPageCount = 1,
+                    userScrollEnabled = !isBusyOnGrid,
                     modifier = Modifier.fillMaxSize(),
                 ) { page ->
                     Box(
@@ -185,27 +208,30 @@ fun LauncherRoot(
                             WIDGETS -> WidgetCenterScreen(
                                 viewModel = viewModel,
                                 settings = settings,
-                                onAddWidget = { widgetPickerFor = WidgetTarget.CENTER },
+                                onAddWidget = { galleryFor = WidgetTarget.CENTER },
                             )
-                            WELLBEING -> WellbeingScreen(viewModel)
-                            HOME -> HomeScreen(
-                                state = state,
-                                viewModel = viewModel,
-                                editingWidgets = editingHomeWidgets,
-                                onFinishEditingWidgets = { editingHomeWidgets = false },
-                                onLongPress = { actionsFor = it },
-                                onOpenFolder = { openFolderId = it },
-                                onChooseApps = { pickerFor = AppList.HOME },
-                                onHomeMenu = { showHomeMenu = true },
-                                onSettings = { showSettings = true },
-                            )
-                            USEFUL -> UsefulScreen(
-                                state = state,
-                                viewModel = viewModel,
-                                onLongPress = { actionsFor = it },
-                                onOpenFolder = { openFolderId = it },
-                                onEdit = { pickerFor = it },
-                            )
+                            WELLBEING -> WellbeingScreen(state, viewModel)
+                            HOME, USEFUL -> {
+                                val target = if (page == HOME) GridTarget.HOME else GridTarget.USEFUL
+                                GridScreen(
+                                    target = target,
+                                    state = state,
+                                    viewModel = viewModel,
+                                    drag = if (page == HOME) homeDrag else usefulDrag,
+                                    editing = editing == target,
+                                    onEnterEdit = { editing = target },
+                                    onExitEdit = { editing = null },
+                                    onLongPressApp = { actionsFor = it },
+                                    onOpenFolder = { openFolderId = it },
+                                    onChooseApps = { pickerFor = target },
+                                    onOpenGallery = {
+                                        galleryFor = if (page == HOME) WidgetTarget.HOME else WidgetTarget.USEFUL
+                                    },
+                                    onSettings = { showSettings = true },
+                                    onOpenWellbeing = { goTo(WELLBEING) },
+                                    onDockIconMenu = { dockMenuFor = it },
+                                )
+                            }
                             DRAWER -> DrawerScreen(
                                 state = state,
                                 viewModel = viewModel,
@@ -217,6 +243,7 @@ fun LauncherRoot(
                                 viewModel = viewModel,
                                 isCurrentPage = pager.currentPage == LIBRARY,
                                 onLongPress = { actionsFor = it },
+                                onSettings = { showSettings = true },
                             )
                         }
                     }
@@ -228,7 +255,7 @@ fun LauncherRoot(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(bottom = 6.dp),
+                        .padding(bottom = indicatorPadding),
                 )
 
                 openFolder?.let { folder ->
@@ -237,11 +264,21 @@ fun LauncherRoot(
                         state = state,
                         viewModel = viewModel,
                         onLongPress = { actionsFor = it },
+                        onAddApps = { folderPickerFor = folder.folder.id },
                         onDismiss = { openFolderId = null },
                     )
                 }
                 if (showSettings) {
-                    SettingsScreen(state, viewModel, onClose = { showSettings = false })
+                    SettingsScreen(
+                        state = state,
+                        viewModel = viewModel,
+                        onEditHome = {
+                            showSettings = false
+                            goTo(HOME)
+                            editing = GridTarget.HOME
+                        },
+                        onClose = { showSettings = false },
+                    )
                 }
                 gate?.let { request ->
                     InterruptionScreen(
@@ -250,22 +287,12 @@ fun LauncherRoot(
                         onContinue = viewModel::continueGate,
                         onDismiss = {
                             viewModel.dismissGate()
-                            goHome()
+                            goTo(HOME)
                         },
                     )
                 }
             }
 
-            if (showHomeMenu) {
-                HomeMenuSheet(
-                    hasWidgets = settings.homeWidgetIds.isNotEmpty(),
-                    onChooseApps = { pickerFor = AppList.HOME },
-                    onAddWidget = { widgetPickerFor = WidgetTarget.HOME },
-                    onEditWidgets = { editingHomeWidgets = true },
-                    onSettings = { showSettings = true },
-                    onDismiss = { showHomeMenu = false },
-                )
-            }
             actionsFor?.let { app ->
                 AppActionsSheet(
                     app = app,
@@ -274,18 +301,71 @@ fun LauncherRoot(
                     onDismiss = { actionsFor = null },
                 )
             }
-            pickerFor?.let { list ->
+            dockMenuFor?.let { app ->
+                DockIconSheet(
+                    app = app,
+                    viewModel = viewModel,
+                    onReplace = { dockReplaceFor = app },
+                    onDismiss = { dockMenuFor = null },
+                )
+            }
+            dockReplaceFor?.let { old ->
                 AppPickerSheet(
-                    list = list,
+                    title = "Reemplazar ${old.label}",
                     state = state,
                     viewModel = viewModel,
+                    isSelected = { it.key == old.key },
+                    onToggle = { new ->
+                        viewModel.replaceInDock(old, new)
+                        dockReplaceFor = null
+                    },
+                    onDismiss = { dockReplaceFor = null },
+                )
+            }
+            pickerFor?.let { target ->
+                val list = if (target == GridTarget.HOME) AppList.HOME else AppList.USEFUL
+                AppPickerSheet(
+                    title = list.label,
+                    state = state,
+                    viewModel = viewModel,
+                    isSelected = { state.isIn(list, it) },
+                    onToggle = { viewModel.toggleInGrid(target, it) },
                     onDismiss = { pickerFor = null },
                 )
             }
-            widgetPickerFor?.let { target ->
-                WidgetPickerSheet(
-                    onPick = { provider -> onPickWidget(provider, target) },
-                    onDismiss = { widgetPickerFor = null },
+            folderPickerFor?.let { folderId ->
+                AppPickerSheet(
+                    title = "Añadir a la carpeta",
+                    state = state,
+                    viewModel = viewModel,
+                    isSelected = { app -> state.folderOf(app)?.id == folderId },
+                    onToggle = { app ->
+                        if (state.folderOf(app)?.id == folderId) {
+                            viewModel.removeFromFolder(folderId, app)
+                        } else {
+                            viewModel.addToFolder(folderId, app)
+                        }
+                    },
+                    onDismiss = { folderPickerFor = null },
+                )
+            }
+            galleryFor?.let { target ->
+                WidgetGallerySheet(
+                    state = state,
+                    viewModel = viewModel,
+                    allowBuiltins = target != WidgetTarget.CENTER,
+                    onAddProvider = { provider, w, h ->
+                        onPickWidget(provider, target, w, h)
+                        if (target != WidgetTarget.CENTER) {
+                            editing = if (target == WidgetTarget.HOME) GridTarget.HOME else GridTarget.USEFUL
+                        }
+                    },
+                    onAddBuiltin = { kind, w, h ->
+                        val gridTarget = if (target == WidgetTarget.USEFUL) GridTarget.USEFUL else GridTarget.HOME
+                        viewModel.addBuiltinWidget(gridTarget, kind, w, h)
+                        editing = gridTarget
+                    },
+                    onDismiss = { galleryFor = null },
                 )
             }
         }

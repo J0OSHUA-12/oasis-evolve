@@ -27,7 +27,7 @@ Estado en Oasis Evolve: ✅ en v0.1 · 🟡 parcial en v0.1 · ⏳ fase posterio
 | Paquetes de iconos | Sí | ID | Conservar | Formato `appfilter.xml` | ✅ |
 | Pantalla principal | Reloj, apps en lista, iconos laterales | ID | Modificar | Cuadrícula de iconos, dock, widgets | 🟡 |
 | Selección manual de apps en inicio | Sí, con límite Pro | ID | Conservar | Sin límite, sin autopoblar | ✅ |
-| Reordenar con arrastrar | Mover arriba/abajo | PC | Modificar | Arrastrar en cuadrículas; el dock aún usa «Mover» | 🟡 |
+| Reordenar con arrastrar | Mover arriba/abajo | PC | Modificar | Cuadrícula libre, dock y carpetas | ✅ |
 | Seis pantallas | Número exacto incierto | NV | Cambiar | 2 izquierda, inicio, 3 derecha | ✅ |
 | Apps que aportan valor | No existe | NUEVA | Nueva | Selección manual y categoría «Quiero usar más» | ✅ |
 | App Library visual | No existe | NUEVA | Nueva | Carpetas automáticas, búsqueda, desactivable | 🟡 |
@@ -36,7 +36,7 @@ Estado en Oasis Evolve: ✅ en v0.1 · 🟡 parcial en v0.1 · ⏳ fase posterio
 | Vista compacta o expandida | No existe | NUEVA | Nueva | Selector en la biblioteca | ✅ |
 | Fondo real del dispositivo | Opción | ID | Cambiar | Siempre activo, sin opción | ✅ |
 | Fondos Lottie y temas de color | Sí | ID | Descartar | Sin fondos animados, con tema propio | ❌ |
-| Modo inmersivo / ocultar barra de estado | Sí | ID | Conservar | Ajuste | ⏳ |
+| Modo inmersivo / ocultar barra de estado | Sí | ID | Conservar | Immersive Mode en Customization | ✅ |
 
 ## Bienestar y distracciones
 
@@ -44,8 +44,8 @@ Estado en Oasis Evolve: ✅ en v0.1 · 🟡 parcial en v0.1 · ⏳ fase posterio
 |---|---|---|---|---|---|
 | Uso por app | Hoy y 7 días | ID | Ampliar | 24 h, 7 y 30 días con cobertura real | ✅ |
 | Comparar con el periodo anterior | No observado | NUEVA | Nueva | Solo con periodos completos y equivalentes | ✅ |
-| Gráficas | No observado | NUEVA | Nueva | Barras por app (más en Fase 4) | 🟡 |
-| Year Progress | Día, semana, mes, año | ID | Modificar | Año, semestre y mes | ✅ |
+| Gráficas | No observado | NUEVA | Nueva | Barras por app y por día | ✅ |
+| Year Progress | Día, semana, mes, año | ID | Ampliar | Día, semana, mes, semestre y año | ✅ |
 | Notas | Sí | ID | Conservar | Escribir, editar, eliminar, copiar, compartir | ✅ |
 | To-do, calendario | Sí | ID | Evaluar | Calendario en Widget Center, Fase 5 | ⏳ |
 | Minijuegos, trivia, chistes | Sí | ID | Descartar | Excluidos por requisito | ❌ |
@@ -56,8 +56,8 @@ Estado en Oasis Evolve: ✅ en v0.1 · 🟡 parcial en v0.1 · ⏳ fase posterio
 | Matemáticas / mensaje | Sí | ID | Conservar | Tipos opcionales, Fase 3 | ⏳ |
 | Interrumpir carpetas y al salir de Focus | Sí | ID | Conservar | Fase 3 | ⏳ |
 | Excluir apps esenciales | No observado | NUEVA | Nueva | Lista de esenciales | ⏳ |
-| Proyección de tiempo | No observado | NUEVA | Nueva | Lógica probada; en la interrupción | 🟡 |
-| Mensajes de mejora | No observado | NUEVA | Nueva | Fase 4 | ⏳ |
+| Proyección de tiempo | No observado | NUEVA | Nueva | En tarjetas, detalle e interrupción | ✅ |
+| Mensajes de mejora | No observado | NUEVA | Nueva | Comparación semanal y de 30 días; objetivos en Fase 4 | 🟡 |
 | Límites de tiempo | No existe | NUEVA | Nueva | Ver `TECHNICAL_LIMITATIONS.md` | ⏳ |
 | Focus Mode | Interfaz reducida | ID/PC | Conservar | Fase 3 | ⏳ |
 | Filtro de notificaciones | Listener, cancelar y guardar | ID | Conservar | Fase 3 | ⏳ |
@@ -67,7 +67,8 @@ Estado en Oasis Evolve: ✅ en v0.1 · 🟡 parcial en v0.1 · ⏳ fase posterio
 | Función | Oasis original | Clase | Decisión | Oasis Evolve | Estado |
 |---|---|---|---|---|---|
 | Widgets de terceros | `AppWidgetHost` | ID | Conservar | En Widget Center con API oficial | 🟡 |
-| Redimensionar widgets | Sí | ID | Conservar | Cuatro alturas predefinidas | 🟡 |
+| Redimensionar widgets | Sí | ID | Conservar | Por celdas con asa en edición | ✅ |
+| Galería de widgets con vista previa | Solo nombre | ID | Modificar | Vista previa real, tamaños y detalle | ✅ |
 | Widgets en inicio | Sí | ID | Conservar | Añadir, ordenar y quitar | ✅ |
 | Doble toque para bloquear | Device admin | ID | Evaluar | Fase 3; alternativa en limitaciones | ⏳ |
 | Deslizar arriba/abajo | Sí | ID | Conservar | Fase 3 con acciones asignables | ⏳ |

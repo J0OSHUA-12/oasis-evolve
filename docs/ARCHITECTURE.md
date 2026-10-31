@@ -26,12 +26,11 @@ LauncherApps    DataStore (JSON)   Room (notas)    UsageEvents      AppWidgetHos
 | Paquete | Responsabilidad |
 |---|---|
 | `navigation` | Pager de seis pantallas, Atrás, Inicio, indicador |
-| `home` | Inicio, reloj, dock y hojas de acciones y selección |
-| `useful` | «Quiero usar más» y «Útiles» |
+| `home` | Cuadrícula de Inicio y Apps útiles, edición, dock, carpetas y hojas de acciones |
 | `drawer` | Lista textual, riel, búsqueda normal y deliberada |
 | `library` | Categorías automáticas y tarjetas |
 | `wellbeing` | Uso, progreso del periodo y notas |
-| `widgets` | Widget Center y ciclo oficial de `AppWidgetHost` |
+| `widgets` | Galería con vistas previas, widgets propios, Widget Center y ciclo oficial de `AppWidgetHost` |
 | `usage` | Cálculo y lectura de eventos de uso |
 | `focus` | Niveles de acceso e interrupción |
 | `settings` | Pantalla de ajustes |
@@ -41,10 +40,17 @@ LauncherApps    DataStore (JSON)   Room (notas)    UsageEvents      AppWidgetHos
 
 ## Arrastre y organización
 
-- `ui/Reorder.kt`: estado y gesto de arrastre sobre una cuadrícula perezosa. Reordena en vivo o, en la biblioteca, solo indica el destino.
-- `home/EntryGrid.kt`: orden provisional durante el arrastre y elementos de cuadrícula (app o carpeta).
-- `storage/Organizer.kt`: operaciones puras sobre carpetas, categorías y orden, cubiertas por `OrganizerTest`.
-- En las listas, una carpeta se guarda como la clave `folder:<id>` entre las claves de las apps.
+- `storage/HomeLayout.kt`: modelo puro de la cuadrícula: rectángulos de celdas, solapes, huecos y tamaños.
+- `home/GridDrag.kt`: decide qué pasaría al soltar (`resolveDrop`) y sigue el dedo.
+- `home/GridScreen.kt`: dibuja Inicio y Apps útiles, el modo edición y el dock. Es una sola pantalla para las dos.
+- `storage/Organizer.kt`: operaciones puras sobre carpetas, dock, categorías y orden, cubiertas por `OrganizerTest`.
+- `storage/DefaultLayout.kt`: composición de referencia y mezcla con lo que ya hubiera.
+- `ui/Reorder.kt`: arrastre en cuadrículas perezosas. Se usa dentro de carpetas y en la biblioteca expandida.
+
+## Estadísticas
+
+`usage/UsageCalculator.kt` contiene el único cálculo. `UsageRepository` lee los eventos de los últimos 60 días en una sola
+pasada y calcula todas las ventanas a la vez. El resumen se reutiliza durante 60 segundos en Bienestar, en el widget y en las interrupciones.
 
 ## Módulo de pruebas
 

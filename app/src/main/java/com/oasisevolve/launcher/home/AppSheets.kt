@@ -69,20 +69,10 @@ fun AppActionsSheet(
 
             SectionTitle("Colocar en")
             AppList.entries.forEach { list ->
-                val inList = app.key in state.keys(list)
-                CheckRow(list.label, inList) { viewModel.toggle(list, app) }
-                if (inList && list == AppList.DOCK) {
-                    Row(
-                        Modifier.padding(start = 48.dp),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    ) {
-                        ActionText("Mover antes") { viewModel.move(list, app, -1) }
-                        ActionText("Mover después") { viewModel.move(list, app, 1) }
-                    }
-                }
+                CheckRow(list.label, state.isIn(list, app)) { viewModel.toggle(list, app) }
             }
             Text(
-                "En las cuadrículas, mantén pulsada una app y arrástrala para cambiarla de sitio.",
+                "Mantén pulsada una app y arrástrala para moverla, o suéltala sobre otra para crear una carpeta.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -175,16 +165,56 @@ fun AppActionsSheet(
     }
 }
 
+/** Opciones de un icono del dock: reemplazarlo, quitarlo o moverlo sin perder su contenedor. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DockIconSheet(
+    app: AppEntry,
+    viewModel: LauncherViewModel,
+    onReplace: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .padding(horizontal = 22.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding(),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppIcon(app, viewModel, size = 40.dp)
+                Text(app.label, style = MaterialTheme.typography.titleLarge)
+            }
+            ActionRow("Reemplazar") {
+                onDismiss()
+                onReplace()
+            }
+            ActionRow("Mover a la izquierda") { viewModel.moveInDock(app, -1) }
+            ActionRow("Mover a la derecha") { viewModel.moveInDock(app, 1) }
+            ActionRow("Quitar del dock") {
+                viewModel.removeFromDock(app)
+                onDismiss()
+            }
+            ActionRow("Información de la app") {
+                viewModel.openAppInfo(app)
+                onDismiss()
+            }
+        }
+    }
+}
+
+/** Selector de apps. Sirve para colocar varias, para una carpeta o para reemplazar un icono del dock. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppPickerSheet(
-    list: AppList,
+    title: String,
     state: LauncherState,
     viewModel: LauncherViewModel,
+    isSelected: (AppEntry) -> Boolean,
+    onToggle: (AppEntry) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    val selected = state.keys(list)
     val results = filterBySearch(state.allApps.filter { state.level(it).inVisualScreens }, query) { it.label }
 
     ModalBottomSheet(
@@ -197,64 +227,23 @@ fun AppPickerSheet(
                 .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(list.label, style = MaterialTheme.typography.titleLarge)
+            Text(title, style = MaterialTheme.typography.titleLarge)
             SearchField(query, onQueryChange = { query = it }, placeholder = "Buscar apps")
             LazyColumn(Modifier.fillMaxWidth()) {
                 items(results, key = { it.key }) { app ->
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clickable { viewModel.toggle(list, app) }
+                            .clickable { onToggle(app) }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         AppIcon(app, viewModel, size = 36.dp)
                         Text(app.label, Modifier.weight(1f))
-                        Checkbox(checked = app.key in selected, onCheckedChange = { viewModel.toggle(list, app) })
+                        Checkbox(checked = isSelected(app), onCheckedChange = { onToggle(app) })
                     }
                 }
-            }
-        }
-    }
-}
-
-/** Menú al mantener pulsado un espacio libre de la pantalla principal. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeMenuSheet(
-    hasWidgets: Boolean,
-    onChooseApps: () -> Unit,
-    onAddWidget: () -> Unit,
-    onEditWidgets: () -> Unit,
-    onSettings: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .padding(horizontal = 22.dp)
-                .padding(bottom = 24.dp)
-                .navigationBarsPadding(),
-        ) {
-            Text("Pantalla principal", style = MaterialTheme.typography.titleLarge)
-            ActionRow("Elegir apps") {
-                onDismiss()
-                onChooseApps()
-            }
-            ActionRow("Añadir widget") {
-                onDismiss()
-                onAddWidget()
-            }
-            if (hasWidgets) {
-                ActionRow("Editar widgets") {
-                    onDismiss()
-                    onEditWidgets()
-                }
-            }
-            ActionRow("Ajustes") {
-                onDismiss()
-                onSettings()
             }
         }
     }
@@ -281,18 +270,6 @@ private fun CheckRow(label: String, checked: Boolean, onToggle: () -> Unit) {
         Checkbox(checked = checked, onCheckedChange = { onToggle() })
         Text(label, style = MaterialTheme.typography.bodyLarge)
     }
-}
-
-@Composable
-private fun ActionText(label: String, onClick: () -> Unit) {
-    Text(
-        label,
-        color = MaterialTheme.colorScheme.primary,
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-    )
 }
 
 @Composable

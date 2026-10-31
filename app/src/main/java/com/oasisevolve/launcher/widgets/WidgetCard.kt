@@ -1,36 +1,36 @@
 package com.oasisevolve.launcher.widgets
 
+import android.appwidget.AppWidgetHostView
 import android.os.Bundle
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
+import android.widget.TextView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import android.appwidget.AppWidgetProviderInfo
 import com.oasisevolve.launcher.EvolveApp
 import com.oasisevolve.launcher.LauncherViewModel
-import com.oasisevolve.launcher.storage.WidgetTarget
 import com.oasisevolve.launcher.ui.GlassCard
 
 private val SIZE_OPTIONS = listOf("S" to 110, "M" to 180, "L" to 260, "XL" to 340)
@@ -39,10 +39,52 @@ private val SIZE_OPTIONS = listOf("S" to 110, "M" to 180, "L" to 260, "XL" to 34
 private fun defaultHeightDp(minHeightPx: Int, density: Float): Int =
     (minHeightPx / density).toInt().coerceIn(110, 340)
 
+/** Widget externo dentro de la cuadrícula. Un widget que falle no debe tumbar la pantalla. */
+@Composable
+fun GridAppWidget(id: Int?, onLongPress: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
+    val controller = remember { (context.applicationContext as EvolveApp).widgets }
+    val info = id?.let(controller::info)
+
+    if (id == null || info == null) {
+        Box(
+            modifier
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xC4141618))
+                .padding(10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("Este widget ya no está disponible", color = Color.White, style = MaterialTheme.typography.bodySmall)
+        }
+        return
+    }
+
+    BoxWithConstraints(modifier.clip(RoundedCornerShape(24.dp))) {
+        val width = maxWidth.value.toInt()
+        val height = maxHeight.value.toInt()
+        AndroidView(
+            factory = { viewContext ->
+                runCatching { controller.createView(viewContext, id, info) }.getOrElse {
+                    TextView(viewContext).apply { text = "No se pudo mostrar este widget" }
+                }.also { view ->
+                    (view as? EvolveWidgetHostView)?.onLongPress = { currentOnLongPress() }
+                }
+            },
+            update = { view ->
+                // Sin esto, muchos widgets conservan la distribución de su tamaño mínimo.
+                @Suppress("DEPRECATION")
+                runCatching { (view as? AppWidgetHostView)?.updateAppWidgetSize(Bundle(), width, height, width, height) }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** Widget en el Widget Center, una lista vertical con alturas predefinidas. */
 @Composable
 fun WidgetCard(
     id: Int,
-    target: WidgetTarget,
     heightDp: Int?,
     editing: Boolean,
     viewModel: LauncherViewModel,
@@ -60,11 +102,16 @@ fun WidgetCard(
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val width = maxWidth.value.toInt()
                 AndroidView(
-                    factory = { viewContext -> controller.createView(viewContext, id, info) },
+                    factory = { viewContext ->
+                        runCatching { controller.createView(viewContext, id, info) }.getOrElse {
+                            TextView(viewContext).apply { text = "No se pudo mostrar este widget" }
+                        }
+                    },
                     update = { view ->
-                        // Sin esto, muchos widgets conservan la distribución de su tamaño mínimo.
                         @Suppress("DEPRECATION")
-                        view.updateAppWidgetSize(Bundle(), width, height, width, height)
+                        runCatching {
+                            (view as? AppWidgetHostView)?.updateAppWidgetSize(Bundle(), width, height, width, height)
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -83,51 +130,9 @@ fun WidgetCard(
                 }
             }
             Row {
-                TextButton(onClick = { viewModel.moveWidget(target, id, -1) }) { Text("Subir") }
-                TextButton(onClick = { viewModel.moveWidget(target, id, 1) }) { Text("Bajar") }
+                TextButton(onClick = { viewModel.moveWidget(id, -1) }) { Text("Subir") }
+                TextButton(onClick = { viewModel.moveWidget(id, 1) }) { Text("Bajar") }
                 TextButton(onClick = { controller.remove(id, viewModel) }) { Text("Quitar") }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun WidgetPickerSheet(
-    onPick: (AppWidgetProviderInfo) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-    val controller = remember { (context.applicationContext as EvolveApp).widgets }
-    val providers = remember { controller.providers() }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
-        Column(
-            Modifier
-                .padding(horizontal = 18.dp)
-                .navigationBarsPadding(),
-        ) {
-            Text("Elige un widget", style = MaterialTheme.typography.titleLarge)
-            if (providers.isEmpty()) {
-                Text("Ninguna app instalada ofrece widgets.", Modifier.padding(vertical = 16.dp))
-            }
-            LazyColumn {
-                items(providers, key = { "${it.provider.flattenToShortString()}/${it.profile.hashCode()}" }) { provider ->
-                    Text(
-                        controller.label(provider),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onDismiss()
-                                onPick(provider)
-                            }
-                            .padding(vertical = 12.dp),
-                    )
-                }
             }
         }
     }

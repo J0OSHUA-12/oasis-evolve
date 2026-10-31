@@ -10,29 +10,46 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-enum class UsageWindow(val label: String, val days: Int) {
-    LAST_24H("24 horas", 1),
-    LAST_7D("7 días", 7),
-    LAST_30D("30 días", 30),
-}
-
-data class UsageReport(
-    val window: UsageWindow,
-    val summary: UsageSummary,
-    val coverageDays: Int,
-    val previousTotalMs: Long?,
-    val changePercent: Double?,
-)
-
+/** Estadísticas de una app, o del total si es el resumen. */
 data class AppStats(
+    val packageName: String?,
     val todayMs: Long,
+    val todayOpens: Int,
     val last24hMs: Long,
     val last7dMs: Long,
+    val last30dMs: Long,
+    val previous7dMs: Long?,
+    val previous30dMs: Long?,
     val coverageDays: Int,
+    /** Del más antiguo a hoy. */
+    val dailyMs: List<Long>,
 ) {
     val averageDailyMs: Long get() = if (coverageDays > 0) last7dMs / coverageDays else 0
+    val projection: TimeProjection get() = projectTime(averageDailyMs)
 }
 
+data class UsageOverview(
+    val generatedAt: Long,
+    val total: AppStats,
+    /** Ordenadas de mayor a menor uso de hoy. */
+    val apps: List<AppStats>,
+    val coverage30d: Int,
+) {
+    fun statsFor(packageName: String): AppStats =
+        apps.firstOrNull { it.packageName == packageName } ?: total.copy(
+            packageName = packageName,
+            todayMs = 0,
+            todayOpens = 0,
+            last24hMs = 0,
+            last7dMs = 0,
+            last30dMs = 0,
+            previous7dMs = if (total.previous7dMs != null) 0 else null,
+            previous30dMs = if (total.previous30dMs != null) 0 else null,
+            dailyMs = total.dailyMs.map { 0L },
+        )
+}
+
+/** Un único motor de estadísticas: el panel de Bienestar y las interrupciones leen el mismo resumen. */
 class UsageRepository(private val context: Context) {
     private val manager = context.getSystemService(UsageStatsManager::class.java)
     private val ownPackage = context.packageName
@@ -48,41 +65,62 @@ class UsageRepository(private val context: Context) {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    suspend fun report(window: UsageWindow): UsageReport = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
-        val length = window.days * DAY_MS
-        val start = now - length
-        val previousStart = start - length
-
-        val current = summarize(start, now)
-        val previous = summarize(previousStart, start)
-        val comparable = isPeriodComparable(previous.firstEventAt, previousStart, length)
-        val previousTotal = if (comparable) previous.totalMs else null
-
-        UsageReport(
-            window = window,
-            summary = current,
-            coverageDays = coverageDays(current.firstEventAt, start, now),
-            previousTotalMs = previousTotal,
-            changePercent = previousTotal?.let { percentChange(current.totalMs, it) },
-        )
-    }
-
-    suspend fun statsFor(packageName: String): AppStats = withContext(Dispatchers.IO) {
+    suspend fun overview(): UsageOverview = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
         val midnight = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        val weekStart = now - 7 * DAY_MS
-        val week = summarize(weekStart, now)
-        AppStats(
-            todayMs = summarize(midnight, now).perApp[packageName]?.foregroundMs ?: 0,
-            last24hMs = summarize(now - DAY_MS, now).perApp[packageName]?.foregroundMs ?: 0,
-            last7dMs = week.perApp[packageName]?.foregroundMs ?: 0,
-            coverageDays = coverageDays(week.firstEventAt, weekStart, now),
+        }
+
+        val days = (6 downTo 0).map { back ->
+            val day = (midnight.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -back) }.timeInMillis
+            val next = (midnight.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -back + 1) }.timeInMillis
+            day to minOf(next, now)
+        }
+        val week = 7 * DAY_MS
+        val month = 30 * DAY_MS
+        val windows = listOf(
+            midnight.timeInMillis to now,
+            now - DAY_MS to now,
+            now - week to now,
+            now - 2 * week to now - week,
+            now - month to now,
+            now - 2 * month to now - month,
+        ) + days
+
+        val summaries = computeWindows(readEvents(now - 2 * month, now), windows, launcherPackages())
+        val (today, last24h, last7d, previous7d, last30d) = summaries
+        val previous30d = summaries[5]
+        val daily = summaries.drop(6)
+        val coverage = coverageDays(last7d.firstEventAt, now - week, now)
+        val comparable7 = isPeriodComparable(previous7d.firstEventAt, now - 2 * week, week)
+        val comparable30 = isPeriodComparable(previous30d.firstEventAt, now - 2 * month, month)
+
+        fun stats(pkg: String?): AppStats {
+            fun ms(summary: UsageSummary) =
+                if (pkg == null) summary.totalMs else summary.perApp[pkg]?.foregroundMs ?: 0L
+            return AppStats(
+                packageName = pkg,
+                todayMs = ms(today),
+                todayOpens = if (pkg == null) today.perApp.values.sumOf { it.opens } else today.perApp[pkg]?.opens ?: 0,
+                last24hMs = ms(last24h),
+                last7dMs = ms(last7d),
+                last30dMs = ms(last30d),
+                previous7dMs = if (comparable7) ms(previous7d) else null,
+                previous30dMs = if (comparable30) ms(previous30d) else null,
+                coverageDays = coverage,
+                dailyMs = daily.map(::ms),
+            )
+        }
+
+        val packages = last30d.perApp.keys + last7d.perApp.keys + today.perApp.keys
+        UsageOverview(
+            generatedAt = now,
+            total = stats(null),
+            apps = packages.map(::stats).sortedWith(compareByDescending<AppStats> { it.todayMs }.thenByDescending { it.last7dMs }),
+            coverage30d = coverageDays(last30d.firstEventAt, now - month, now),
         )
     }
 
@@ -93,9 +131,6 @@ class UsageRepository(private val context: Context) {
             .map { it.activityInfo.packageName }
             .toSet() + ownPackage
     }
-
-    private fun summarize(start: Long, end: Long): UsageSummary =
-        computeUsage(readEvents(start, end), start, end, launcherPackages())
 
     private fun readEvents(start: Long, end: Long): Sequence<RawEvent> = sequence {
         val events = manager.queryEvents(start, end) ?: return@sequence

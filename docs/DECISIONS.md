@@ -25,9 +25,21 @@
 | 21 | 2026-10-31 | Excluir todos los launchers del tiempo de uso | Estar en la pantalla de inicio no es usar una app |
 | 22 | 2026-10-31 | Cristal esmerilado experimental y desactivado | No se pudo comprobar el efecto; Android no permite leer el fondo para desenfocar solo las tarjetas |
 | 23 | 2026-10-31 | Módulo `fixtures/iconpack` solo para pruebas | Permite probar paquetes de iconos reales; nunca forma parte del launcher |
+| 24 | 2026-10-31 | Inicio y Apps útiles comparten una cuadrícula libre de celdas | Es lo que permite mover y redimensionar; sustituye a las listas ordenadas |
+| 25 | 2026-10-31 | Migración automática desde 0.2, sin borrar nada | Tus apps y widgets actuales van a los huecos libres de la composición |
+| 26 | 2026-10-31 | La composición de referencia se aplica una sola vez | Después la pantalla es tuya; se puede restaurar desde Ajustes |
+| 27 | 2026-10-31 | Nombres bajo los iconos desactivados en la composición | La referencia no los muestra; se reactivan en Home Screen |
+| 28 | 2026-10-31 | Tema oscuro al aplicar la composición si seguía el del sistema | Las referencias son oscuras; un tema elegido a mano se respeta |
+| 29 | 2026-10-31 | «Quiero usar más» pasa a ser una carpeta | La pantalla ya no tiene títulos, y así no se pierde esa agrupación |
+| 30 | 2026-10-31 | Sin clima en el reloj | Exigiría Internet, en contra del requisito de privacidad |
+| 31 | 2026-10-31 | Fotos copiadas y reducidas a almacenamiento privado | No requiere permisos de galería y no depende de que la foto siga allí |
+| 32 | 2026-10-31 | Una sola pasada por los eventos para todas las ventanas de uso | Mucho menos costoso que consultar Android una vez por ventana |
+| 33 | 2026-10-31 | `EvolveWidgetHostView` intercepta la pulsación larga | Sin ello, mantener pulsado un widget abría su app |
+| 34 | 2026-10-31 | Focus Mode, Notification Filter y Gestures visibles como pendientes | Pediste las secciones, pero son de una fase posterior: no se finge que funcionan |
 
 ## Decisiones pendientes de tu aprobación
 
 1. Modo de límites reforzado, con permiso de superposición (Fase 4).
 2. Cualquier uso de `AccessibilityService`.
 3. Método para el doble toque de bloqueo (Fase 3).
+4. Añadir clima, que exigiría permiso de Internet.

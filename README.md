@@ -3,16 +3,17 @@
 Launcher Android personal, nativo y local, inspirado en la filosofía minimalista de Oasis. Es una aplicación
 independiente, con su propio paquete, código y firma. No contiene código ni recursos de Oasis.
 
-**Estado:** v0.2.0, con la interfaz de la Fase 2. Consulta [qué funciona](docs/FEATURES.md) y
+**Estado:** v0.3.0, con cuadrícula libre, dock, galería de widgets y Bienestar rediseñado. Consulta [qué funciona](docs/FEATURES.md) y
 [qué se probó realmente](docs/TEST_RESULTS.md).
 
 ## Las seis pantallas
 
 `Widgets ← Bienestar ← INICIO → Apps útiles → App Drawer → Biblioteca`
 
-- Mantén pulsada una app para colocarla, cambiar su nivel de acceso, su carpeta o su categoría.
-- Mantén pulsada y arrastra para cambiarla de sitio.
-- Mantén pulsado un espacio libre de Inicio para elegir apps y añadir o editar widgets.
+- Mantén pulsada una app para ver sus opciones, o arrástrala para moverla.
+- Suelta una app sobre otra para crear una carpeta.
+- Mantén pulsado un espacio libre para editar: mover, redimensionar, añadir apps y widgets.
+- Los ajustes están en la última pantalla a la derecha y en el modo edición.
 
 ## Requisitos para compilar
 
@@ -43,6 +44,12 @@ El APK queda en `app\build\outputs\apk\debug\app-debug.apk`.
 
 **Volver atrás:** en Android, ve a Ajustes > Aplicaciones > Aplicaciones predeterminadas > Pantalla de inicio y elige otro
 launcher. Tus apps no se modifican en ningún caso.
+
+## Actualizar sin perder datos
+
+Instala la versión nueva encima de la anterior con `adb install -r`. Tus apps, carpetas, widgets y notas se conservan. Volver
+a una versión anterior exige desinstalar, lo que borra los datos. Por eso `dist/` conserva cada APK y Git cada versión con una
+etiqueta (`v0.2.0`, `v0.3.0`).
 
 ## Versión release firmada
 

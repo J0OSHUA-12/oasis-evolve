@@ -1,8 +1,14 @@
 # Limitaciones técnicas y viabilidad en Android
 
 Las afirmaciones de plataforma proceden de la documentación de Android tal como la conozco; las marcadas con
-**[Probar]** deben confirmarse en tu teléfono. La interfaz de tu captura parece de un Xiaomi/HyperOS, por lo
-que es probable que el ahorro de batería del fabricante agrave los puntos sobre segundo plano. **[Inferencia]**
+**[Probar]** deben confirmarse en tu teléfono, un Tecno LJ7 con HiOS 16.3 y Android 16. El ahorro de batería
+del fabricante puede agravar los puntos sobre segundo plano. **[Inferencia]**
+
+## Clima en el widget de reloj
+
+No está incluido. Consultar el clima exige Internet, y esta app no tiene ese permiso para garantizar que tus
+datos no salen del teléfono. Añadirlo es una decisión tuya, no un detalle técnico: requiere pedir `INTERNET` y,
+para el clima local, una ubicación. Mientras tanto, la galería permite colocar el widget de clima de una app instalada.
 
 ## Resumen de viabilidad
 

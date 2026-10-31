@@ -31,8 +31,8 @@ class MainActivity : ComponentActivity() {
             LauncherRoot(
                 viewModel = viewModel,
                 homeRequests = homeRequests,
-                onPickWidget = { provider, target ->
-                    widgets.startAdding(provider, target, this, viewModel) { intent -> bindWidget.launch(intent) }
+                onPickWidget = { provider, target, w, h ->
+                    widgets.startAdding(provider, target, w, h, this, viewModel) { intent -> bindWidget.launch(intent) }
                 },
             )
         }

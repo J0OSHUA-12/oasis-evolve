@@ -8,7 +8,11 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.content.Intent
 import com.oasisevolve.launcher.LauncherViewModel
+import com.oasisevolve.launcher.storage.GridTarget
+import com.oasisevolve.launcher.storage.HomeItemKind
 import com.oasisevolve.launcher.storage.WidgetTarget
+import com.oasisevolve.launcher.storage.addGridItem
+import com.oasisevolve.launcher.storage.widgetItem
 
 const val REQUEST_CONFIGURE_WIDGET = 4101
 private const val HOST_ID = 2048
@@ -16,16 +20,25 @@ private const val HOST_ID = 2048
 /** Flujo oficial de Android para alojar widgets: asignar id, pedir vínculo, configurar y guardar. */
 class WidgetHostController(private val context: Context) {
     private val manager = AppWidgetManager.getInstance(context)
-    private val host = AppWidgetHost(context, HOST_ID)
+    private val host = object : AppWidgetHost(context, HOST_ID) {
+        override fun onCreateView(
+            context: Context,
+            appWidgetId: Int,
+            appWidget: AppWidgetProviderInfo?,
+        ): AppWidgetHostView = EvolveWidgetHostView(context)
+    }
     private var pendingId: Int? = null
     private var pendingTarget = WidgetTarget.CENTER
+    private var pendingW = 2
+    private var pendingH = 2
 
-    fun providers(): List<AppWidgetProviderInfo> =
-        manager.installedProviders.sortedBy { it.loadLabel(context.packageManager).lowercase() }
+    fun providers(): List<AppWidgetProviderInfo> = manager.installedProviders
 
     fun label(info: AppWidgetProviderInfo): String = info.loadLabel(context.packageManager)
 
     fun info(id: Int): AppWidgetProviderInfo? = manager.getAppWidgetInfo(id)
+
+    fun manager(): AppWidgetManager = manager
 
     fun startListening() = runCatching { host.startListening() }.let { }
 
@@ -37,6 +50,8 @@ class WidgetHostController(private val context: Context) {
     fun startAdding(
         provider: AppWidgetProviderInfo,
         target: WidgetTarget,
+        wCells: Int,
+        hCells: Int,
         activity: Activity,
         viewModel: LauncherViewModel,
         requestBind: (Intent) -> Unit,
@@ -44,6 +59,8 @@ class WidgetHostController(private val context: Context) {
         val id = host.allocateAppWidgetId()
         pendingId = id
         pendingTarget = target
+        pendingW = wCells
+        pendingH = hCells
         if (manager.bindAppWidgetIdIfAllowed(id, provider.profile, provider.provider, null)) {
             configureOrSave(activity, viewModel)
         } else {
@@ -64,13 +81,17 @@ class WidgetHostController(private val context: Context) {
         if (resultCode == Activity.RESULT_OK) savePending(viewModel) else discardPending()
     }
 
+    /** Libera el identificador del widget y borra todo rastro suyo en la configuración. */
     fun remove(id: Int, viewModel: LauncherViewModel) {
-        host.deleteAppWidgetId(id)
-        viewModel.updateSettings {
-            it.copy(
-                widgetIds = it.widgetIds - id,
-                homeWidgetIds = it.homeWidgetIds - id,
-                widgetHeights = it.widgetHeights - id,
+        runCatching { host.deleteAppWidgetId(id) }
+        viewModel.updateSettings { s ->
+            fun isThisWidget(item: com.oasisevolve.launcher.storage.HomeItem) =
+                item.kind == HomeItemKind.WIDGET && item.ref == id.toString()
+            s.copy(
+                widgetIds = s.widgetIds - id,
+                widgetHeights = s.widgetHeights - id,
+                homeLayout = s.homeLayout.filterNot(::isThisWidget),
+                usefulLayout = s.usefulLayout.filterNot(::isThisWidget),
             )
         }
     }
@@ -92,15 +113,20 @@ class WidgetHostController(private val context: Context) {
     private fun savePending(viewModel: LauncherViewModel) {
         val id = pendingId ?: return
         val target = pendingTarget
+        val w = pendingW
+        val h = pendingH
         pendingId = null
-        viewModel.updateSettings {
-            if (target == WidgetTarget.HOME) it.copy(homeWidgetIds = it.homeWidgetIds + id)
-            else it.copy(widgetIds = it.widgetIds + id)
+        viewModel.updateSettings { s ->
+            when (target) {
+                WidgetTarget.CENTER -> s.copy(widgetIds = s.widgetIds + id)
+                WidgetTarget.HOME -> s.addGridItem(GridTarget.HOME) { col, row -> widgetItem(id, col, row, w, h) }
+                WidgetTarget.USEFUL -> s.addGridItem(GridTarget.USEFUL) { col, row -> widgetItem(id, col, row, w, h) }
+            }
         }
     }
 
     private fun discardPending() {
-        pendingId?.let(host::deleteAppWidgetId)
+        pendingId?.let { runCatching { host.deleteAppWidgetId(it) } }
         pendingId = null
     }
 }

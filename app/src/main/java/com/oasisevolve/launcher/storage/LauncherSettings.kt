@@ -27,7 +27,7 @@ enum class IconShape(val label: String, val cornerFraction: Float) {
     SQUARE("Cuadrado", 0.14f),
 }
 
-enum class WidgetTarget { HOME, CENTER }
+enum class WidgetTarget { HOME, USEFUL, CENTER }
 
 data class AppFolder(val id: Long, val name: String, val apps: List<String>) {
     val entryKey: String get() = "$FOLDER_PREFIX$id"
@@ -37,52 +37,74 @@ data class AppFolder(val id: Long, val name: String, val apps: List<String>) {
     }
 }
 
+/** Foto del widget de fotografías, copiada a almacenamiento privado de la app. */
+data class WidgetPhoto(val file: String, val takenAt: Long?)
+
 /** Toda la configuración como un único valor, lo que facilita la escritura atómica y exportarla después. */
 data class LauncherSettings(
-    val homeApps: List<String> = emptyList(),
+    val homeLayout: List<HomeItem> = emptyList(),
+    val usefulLayout: List<HomeItem> = emptyList(),
+    val layoutSeeded: Boolean = false,
     val dockApps: List<String> = emptyList(),
-    val usefulApps: List<String> = emptyList(),
-    val wantMoreApps: List<String> = emptyList(),
     val folders: List<AppFolder> = emptyList(),
+    val photos: List<WidgetPhoto> = emptyList(),
     val accessLevels: Map<String, Int> = emptyMap(),
     val categories: List<String> = DEFAULT_CATEGORIES,
     val hiddenCategories: Set<String> = emptySet(),
     val categoryOverrides: Map<String, String> = emptyMap(),
     val categoryRenames: Map<String, String> = emptyMap(),
     val widgetIds: List<Int> = emptyList(),
-    val homeWidgetIds: List<Int> = emptyList(),
     val widgetHeights: Map<Int, Int> = emptyMap(),
     val waitSeconds: Int = 10,
     val gridColumns: Int = 4,
+    val gridRows: Int = 7,
     val iconSizeDp: Int = 56,
     val gridSpacingDp: Int = 12,
     val pageMarginDp: Int = 20,
-    val showClock: Boolean = true,
     val showDock: Boolean = true,
-    val showHomeWidgets: Boolean = true,
     val showIcons: Boolean = true,
     val showLabels: Boolean = true,
     val libraryEnabled: Boolean = true,
     val libraryExpanded: Boolean = false,
     val reduceMotion: Boolean = false,
     val glassBlur: Boolean = false,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val immersiveMode: Boolean = false,
+    val weekStartIso: Int = 1,
+    val academicSemester: Boolean = false,
+    val academicStartDay: Long? = null,
+    val academicEndDay: Long? = null,
+    val themeMode: ThemeMode = ThemeMode.DARK,
     val accent: Accent = Accent.JADE,
     val font: AppFont = AppFont.SYSTEM,
     val fontScale: Float = 1f,
     val iconShape: IconShape = IconShape.SQUIRCLE,
     val iconPack: String? = null,
 ) {
+    fun layout(target: GridTarget): List<HomeItem> =
+        if (target == GridTarget.HOME) homeLayout else usefulLayout
+
+    fun withLayout(target: GridTarget, items: List<HomeItem>): LauncherSettings =
+        if (target == GridTarget.HOME) copy(homeLayout = items) else copy(usefulLayout = items)
+
     fun toJson(): String = JSONObject().apply {
-        put("homeApps", JSONArray(homeApps))
+        put("version", SCHEMA_VERSION)
+        put("homeLayout", layoutToJson(homeLayout))
+        put("usefulLayout", layoutToJson(usefulLayout))
+        put("layoutSeeded", layoutSeeded)
         put("dockApps", JSONArray(dockApps))
-        put("usefulApps", JSONArray(usefulApps))
-        put("wantMoreApps", JSONArray(wantMoreApps))
         put(
             "folders",
             JSONArray(
                 folders.map { folder ->
                     JSONObject().put("id", folder.id).put("name", folder.name).put("apps", JSONArray(folder.apps))
+                },
+            ),
+        )
+        put(
+            "photos",
+            JSONArray(
+                photos.map { photo ->
+                    JSONObject().put("file", photo.file).put("takenAt", photo.takenAt ?: JSONObject.NULL)
                 },
             ),
         )
@@ -92,22 +114,25 @@ data class LauncherSettings(
         put("categoryOverrides", JSONObject(categoryOverrides as Map<*, *>))
         put("categoryRenames", JSONObject(categoryRenames as Map<*, *>))
         put("widgetIds", JSONArray(widgetIds))
-        put("homeWidgetIds", JSONArray(homeWidgetIds))
         put("widgetHeights", JSONObject(widgetHeights.mapKeys { it.key.toString() } as Map<*, *>))
         put("waitSeconds", waitSeconds)
         put("gridColumns", gridColumns)
+        put("gridRows", gridRows)
         put("iconSizeDp", iconSizeDp)
         put("gridSpacingDp", gridSpacingDp)
         put("pageMarginDp", pageMarginDp)
-        put("showClock", showClock)
         put("showDock", showDock)
-        put("showHomeWidgets", showHomeWidgets)
         put("showIcons", showIcons)
         put("showLabels", showLabels)
         put("libraryEnabled", libraryEnabled)
         put("libraryExpanded", libraryExpanded)
         put("reduceMotion", reduceMotion)
         put("glassBlur", glassBlur)
+        put("immersiveMode", immersiveMode)
+        put("weekStartIso", weekStartIso)
+        put("academicSemester", academicSemester)
+        put("academicStartDay", academicStartDay ?: JSONObject.NULL)
+        put("academicEndDay", academicEndDay ?: JSONObject.NULL)
         put("themeMode", themeMode.name)
         put("accent", accent.name)
         put("font", font.name)
@@ -117,20 +142,59 @@ data class LauncherSettings(
     }.toString()
 
     companion object {
+        private const val SCHEMA_VERSION = 3
+
+        private fun layoutToJson(items: List<HomeItem>) = JSONArray(
+            items.map { item ->
+                JSONObject()
+                    .put("id", item.id)
+                    .put("kind", item.kind.name)
+                    .put("ref", item.ref)
+                    .put("col", item.col)
+                    .put("row", item.row)
+                    .put("w", item.w)
+                    .put("h", item.h)
+            },
+        )
+
+        private fun layoutFromJson(array: JSONArray): List<HomeItem> = List(array.length()) { index ->
+            val o = array.getJSONObject(index)
+            val kind = HomeItemKind.entries.firstOrNull { it.name == o.getString("kind") } ?: return@List null
+            HomeItem(
+                id = o.getString("id"),
+                kind = kind,
+                ref = o.optString("ref"),
+                col = o.getInt("col"),
+                row = o.getInt("row"),
+                w = o.optInt("w", 1),
+                h = o.optInt("h", 1),
+            )
+        }.filterNotNull()
+
         /** Tolera campos ausentes o desconocidos, para que actualizar la app no borre los ajustes. */
         fun fromJson(json: String?): LauncherSettings {
             if (json.isNullOrBlank()) return LauncherSettings()
             val defaults = LauncherSettings()
             val o = runCatching { JSONObject(json) }.getOrNull() ?: return defaults
-            return LauncherSettings(
-                homeApps = o.stringList("homeApps"),
+            val folders = o.optJSONArray("folders")?.let { array ->
+                List(array.length()) { index ->
+                    val folder = array.getJSONObject(index)
+                    AppFolder(folder.getLong("id"), folder.getString("name"), folder.stringList("apps"))
+                }
+            }.orEmpty()
+            val parsed = LauncherSettings(
+                homeLayout = o.optJSONArray("homeLayout")?.let(::layoutFromJson).orEmpty(),
+                usefulLayout = o.optJSONArray("usefulLayout")?.let(::layoutFromJson).orEmpty(),
+                layoutSeeded = o.optBoolean("layoutSeeded", false),
                 dockApps = o.stringList("dockApps"),
-                usefulApps = o.stringList("usefulApps"),
-                wantMoreApps = o.stringList("wantMoreApps"),
-                folders = o.optJSONArray("folders")?.let { array ->
+                folders = folders,
+                photos = o.optJSONArray("photos")?.let { array ->
                     List(array.length()) { index ->
-                        val folder = array.getJSONObject(index)
-                        AppFolder(folder.getLong("id"), folder.getString("name"), folder.stringList("apps"))
+                        val photo = array.getJSONObject(index)
+                        WidgetPhoto(
+                            photo.getString("file"),
+                            if (photo.isNull("takenAt")) null else photo.getLong("takenAt"),
+                        )
                     }
                 }.orEmpty(),
                 accessLevels = o.map("accessLevels") { obj, key -> obj.getInt(key) },
@@ -139,29 +203,79 @@ data class LauncherSettings(
                 categoryOverrides = o.map("categoryOverrides") { obj, key -> obj.getString(key) },
                 categoryRenames = o.map("categoryRenames") { obj, key -> obj.getString(key) },
                 widgetIds = o.intList("widgetIds"),
-                homeWidgetIds = o.intList("homeWidgetIds"),
                 widgetHeights = o.map("widgetHeights") { obj, key -> obj.getInt(key) }
                     .mapKeys { it.key.toInt() },
                 waitSeconds = o.optInt("waitSeconds", defaults.waitSeconds),
                 gridColumns = o.optInt("gridColumns", defaults.gridColumns),
+                gridRows = o.optInt("gridRows", defaults.gridRows),
                 iconSizeDp = o.optInt("iconSizeDp", defaults.iconSizeDp),
                 gridSpacingDp = o.optInt("gridSpacingDp", defaults.gridSpacingDp),
                 pageMarginDp = o.optInt("pageMarginDp", defaults.pageMarginDp),
-                showClock = o.optBoolean("showClock", defaults.showClock),
                 showDock = o.optBoolean("showDock", defaults.showDock),
-                showHomeWidgets = o.optBoolean("showHomeWidgets", defaults.showHomeWidgets),
                 showIcons = o.optBoolean("showIcons", defaults.showIcons),
                 showLabels = o.optBoolean("showLabels", defaults.showLabels),
                 libraryEnabled = o.optBoolean("libraryEnabled", defaults.libraryEnabled),
                 libraryExpanded = o.optBoolean("libraryExpanded", defaults.libraryExpanded),
                 reduceMotion = o.optBoolean("reduceMotion", defaults.reduceMotion),
                 glassBlur = o.optBoolean("glassBlur", defaults.glassBlur),
+                immersiveMode = o.optBoolean("immersiveMode", defaults.immersiveMode),
+                weekStartIso = o.optInt("weekStartIso", defaults.weekStartIso),
+                academicSemester = o.optBoolean("academicSemester", defaults.academicSemester),
+                academicStartDay = if (o.isNull("academicStartDay")) null else o.getLong("academicStartDay"),
+                academicEndDay = if (o.isNull("academicEndDay")) null else o.getLong("academicEndDay"),
                 themeMode = o.enumValue("themeMode", defaults.themeMode),
                 accent = o.enumValue("accent", defaults.accent),
                 font = o.enumValue("font", defaults.font),
                 fontScale = o.optDouble("fontScale", defaults.fontScale.toDouble()).toFloat(),
                 iconShape = o.enumValue("iconShape", defaults.iconShape),
                 iconPack = if (o.isNull("iconPack")) null else o.getString("iconPack"),
+            )
+            return if (o.has("homeLayout")) parsed else migrateFromV2(parsed, o)
+        }
+
+        /**
+         * Convierte las listas de las versiones 0.1 y 0.2 en la cuadrícula. No se pierde nada: las apps
+         * siguen colocadas, y «Quiero usar más» pasa a ser una carpeta, porque esa pantalla ya no tiene títulos.
+         */
+        private fun migrateFromV2(parsed: LauncherSettings, o: JSONObject): LauncherSettings {
+            val columns = parsed.gridColumns
+            val rows = parsed.gridRows
+            fun entryMaker(key: String): (Int, Int) -> HomeItem {
+                if (!key.startsWith(AppFolder.FOLDER_PREFIX)) return { col, row -> appItem(key, col, row) }
+                val id = key.removePrefix(AppFolder.FOLDER_PREFIX).toLong()
+                return { col, row -> folderItem(id, col, row) }
+            }
+
+            val widgetSpan = 2
+            val home = addItems(
+                emptyList(),
+                columns,
+                rows,
+                o.intList("homeWidgetIds").map { id ->
+                    { col: Int, row: Int -> widgetItem(id, col, row, columns.coerceAtMost(4), widgetSpan) }
+                } + o.stringList("homeApps").map(::entryMaker),
+            )
+
+            val wantMore = o.stringList("wantMoreApps")
+            val usefulKeys = o.stringList("usefulApps")
+            // Los identificadores de carpeta son marcas de tiempo: 1 no puede coincidir con uno real.
+            val wantMoreFolder = if (wantMore.isEmpty()) null else AppFolder(1, "Quiero usar más", wantMore.filterNot {
+                it.startsWith(AppFolder.FOLDER_PREFIX)
+            })
+            val useful = addItems(
+                emptyList(),
+                columns,
+                rows,
+                listOfNotNull(wantMoreFolder?.let { folder -> { col: Int, row: Int -> folderItem(folder.id, col, row) } }) +
+                    wantMore.filter { it.startsWith(AppFolder.FOLDER_PREFIX) }.map(::entryMaker) +
+                    usefulKeys.map(::entryMaker),
+            )
+            return parsed.copy(
+                homeLayout = home,
+                usefulLayout = useful,
+                folders = parsed.folders + listOfNotNull(wantMoreFolder),
+                // Quien ya usaba la app conserva su tema hasta que lo cambie.
+                themeMode = o.enumValue("themeMode", ThemeMode.SYSTEM),
             )
         }
 

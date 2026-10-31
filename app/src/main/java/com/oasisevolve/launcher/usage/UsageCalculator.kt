@@ -1,8 +1,11 @@
 package com.oasisevolve.launcher.usage
 
+import java.util.Locale
+import kotlin.math.absoluteValue
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /** Evento de uso independiente de Android, para poder probar el cálculo en la JVM. */
 data class RawEvent(val type: Int, val packageName: String?, val className: String?, val timestamp: Long)
@@ -37,27 +40,26 @@ private class OpenPackage(var since: Long, val activities: MutableSet<String> = 
  * Un paquete cuenta desde que tiene alguna actividad reanudada hasta que ya no tiene ninguna.
  * Apagar la pantalla, bloquearla o apagar el teléfono cierra todas las sesiones.
  */
-fun computeUsage(
-    events: Sequence<RawEvent>,
-    windowStart: Long,
-    windowEnd: Long,
-    excludedPackages: Set<String> = emptySet(),
-): UsageSummary {
-    val open = HashMap<String, OpenPackage>()
-    val seen = HashSet<String>()
-    val totals = HashMap<String, Long>()
-    val opens = HashMap<String, Int>()
-    val lastClosedAt = HashMap<String, Long>()
-    var firstEventAt: Long? = null
-    var deviceWentInactive = false
+class UsageAccumulator(
+    val windowStart: Long,
+    val windowEnd: Long,
+    private val excludedPackages: Set<String> = emptySet(),
+) {
+    private val open = HashMap<String, OpenPackage>()
+    private val seen = HashSet<String>()
+    private val totals = HashMap<String, Long>()
+    private val opens = HashMap<String, Int>()
+    private val lastClosedAt = HashMap<String, Long>()
+    private var firstEventAt: Long? = null
+    private var deviceWentInactive = false
 
-    fun add(pkg: String, from: Long, to: Long) {
+    private fun add(pkg: String, from: Long, to: Long) {
         val start = max(from, windowStart)
         val end = min(to, windowEnd)
         if (end > start) totals[pkg] = (totals[pkg] ?: 0L) + (end - start)
     }
 
-    fun closeAll(at: Long) {
+    private fun closeAll(at: Long) {
         for ((pkg, session) in open) {
             add(pkg, session.since, at)
             lastClosedAt[pkg] = at
@@ -65,12 +67,12 @@ fun computeUsage(
         open.clear()
     }
 
-    for (event in events) {
+    fun accept(event: RawEvent) {
         if (firstEventAt == null) firstEventAt = event.timestamp
         when (event.type) {
             EventType.ACTIVITY_RESUMED -> {
-                val pkg = event.packageName ?: continue
-                if (pkg in excludedPackages) continue
+                val pkg = event.packageName ?: return
+                if (pkg in excludedPackages) return
                 seen += pkg
                 val session = open[pkg]
                 if (session == null) {
@@ -85,8 +87,8 @@ fun computeUsage(
             }
 
             EventType.ACTIVITY_PAUSED, EventType.ACTIVITY_STOPPED -> {
-                val pkg = event.packageName ?: continue
-                if (pkg in excludedPackages) continue
+                val pkg = event.packageName ?: return
+                if (pkg in excludedPackages) return
                 val session = open[pkg]
                 if (session != null) {
                     session.activities -= event.className.orEmpty()
@@ -111,12 +113,40 @@ fun computeUsage(
             }
         }
     }
-    closeAll(windowEnd)
 
-    val perApp = (totals.keys + opens.keys).associateWith { pkg ->
-        AppUsage(foregroundMs = totals[pkg] ?: 0L, opens = opens[pkg] ?: 0)
+    fun finish(): UsageSummary {
+        closeAll(windowEnd)
+        val perApp = (totals.keys + opens.keys).associateWith { pkg ->
+            AppUsage(foregroundMs = totals[pkg] ?: 0L, opens = opens[pkg] ?: 0)
+        }
+        return UsageSummary(perApp, firstEventAt)
     }
-    return UsageSummary(perApp, firstEventAt)
+}
+
+fun computeUsage(
+    events: Sequence<RawEvent>,
+    windowStart: Long,
+    windowEnd: Long,
+    excludedPackages: Set<String> = emptySet(),
+): UsageSummary {
+    val accumulator = UsageAccumulator(windowStart, windowEnd, excludedPackages)
+    events.forEach(accumulator::accept)
+    return accumulator.finish()
+}
+
+/** Una sola pasada por los eventos para todas las ventanas. Cada evento va solo a las ventanas que lo contienen. */
+fun computeWindows(
+    events: Sequence<RawEvent>,
+    windows: List<Pair<Long, Long>>,
+    excludedPackages: Set<String> = emptySet(),
+): List<UsageSummary> {
+    val accumulators = windows.map { (start, end) -> UsageAccumulator(start, end, excludedPackages) }
+    events.forEach { event ->
+        accumulators.forEach { window ->
+            if (event.timestamp in window.windowStart..window.windowEnd) window.accept(event)
+        }
+    }
+    return accumulators.map { it.finish() }
 }
 
 const val DAY_MS = 86_400_000L
@@ -160,5 +190,27 @@ fun formatDuration(ms: Long): String {
         minutes < 60 -> "$minutes min"
         minutes % 60 == 0L -> "${minutes / 60} h"
         else -> "${minutes / 60} h ${minutes % 60} min"
+    }
+}
+
+/** «26,5» con la coma decimal del idioma del teléfono. */
+fun formatDays(days: Double, locale: Locale = Locale.getDefault()): String =
+    String.format(locale, "%.1f", days)
+
+/** Variación menor que esto no se presenta como un cambio. */
+private const val STABLE_PERCENT = 1.0
+
+/**
+ * Mensaje de comparación entre periodos equivalentes. Refleja solo tiempo de pantalla:
+ * no afirma que el tiempo reducido se haya usado en otra cosa, y si sube se limita a informar.
+ */
+fun comparisonMessage(currentMs: Long, previousMs: Long, periodName: String, subject: String = "tu uso"): String? {
+    val change = percentChange(currentMs, previousMs) ?: return null
+    val percent = change.absoluteValue.roundToInt()
+    val difference = formatDuration((currentMs - previousMs).absoluteValue)
+    return when {
+        change.absoluteValue < STABLE_PERCENT -> "Se mantuvo igual que $periodName."
+        change < 0 -> "Redujiste un $percent % $subject respecto a $periodName. Eso representa $difference menos de pantalla."
+        else -> "Subió un $percent % $subject respecto a $periodName: $difference más de pantalla."
     }
 }

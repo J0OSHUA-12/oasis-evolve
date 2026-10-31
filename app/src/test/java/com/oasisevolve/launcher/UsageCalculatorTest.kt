@@ -6,8 +6,11 @@ import com.oasisevolve.launcher.usage.EventType.ACTIVITY_RESUMED
 import com.oasisevolve.launcher.usage.EventType.ACTIVITY_STOPPED
 import com.oasisevolve.launcher.usage.EventType.SCREEN_NON_INTERACTIVE
 import com.oasisevolve.launcher.usage.RawEvent
+import com.oasisevolve.launcher.usage.comparisonMessage
 import com.oasisevolve.launcher.usage.computeUsage
+import com.oasisevolve.launcher.usage.computeWindows
 import com.oasisevolve.launcher.usage.coverageDays
+import com.oasisevolve.launcher.usage.formatDays
 import com.oasisevolve.launcher.usage.formatDuration
 import com.oasisevolve.launcher.usage.isPeriodComparable
 import com.oasisevolve.launcher.usage.percentChange
@@ -140,6 +143,44 @@ class UsageCalculatorTest {
         assertEquals(60 * 3_600_000L, p.monthMs)
         assertEquals(730 * 3_600_000L, p.yearMs)
         assertEquals(30.4, p.yearInFullDays, 0.05)
+    }
+
+    @Test
+    fun `una sola pasada da el mismo resultado que calcular cada ventana`() {
+        val events = listOf(
+            ev(ACTIVITY_RESUMED, 100),
+            ev(ACTIVITY_PAUSED, 400),
+            ev(ACTIVITY_RESUMED, 600, pkg = "otra"),
+            ev(ACTIVITY_PAUSED, 900, pkg = "otra"),
+        )
+        val windows = listOf(0L to 1000L, 500L to 1000L, 0L to 500L)
+        val combined = computeWindows(events.asSequence(), windows)
+        windows.forEachIndexed { index, (start, end) ->
+            val single = computeUsage(events.asSequence().filter { it.timestamp in start..end }, start, end)
+            assertEquals(single, combined[index])
+        }
+        assertEquals(300, combined[1].perApp.getValue("otra").foregroundMs)
+    }
+
+    @Test
+    fun `los mensajes de comparacion son correctos y respetuosos`() {
+        val reduced = comparisonMessage(85 * 60_000L, 100 * 60_000L, "la semana anterior")!!
+        assertTrue("15 %" in reduced)
+        assertTrue("15 min menos" in reduced)
+        val increased = comparisonMessage(110 * 60_000L, 100 * 60_000L, "la semana anterior")!!
+        assertTrue("10 %" in increased)
+        assertFalse("mal" in increased)
+        assertEquals(
+            "Se mantuvo igual que la semana anterior.",
+            comparisonMessage(100 * 60_000L, 100 * 60_000L, "la semana anterior"),
+        )
+        assertNull(comparisonMessage(10, 0, "la semana anterior"))
+    }
+
+    @Test
+    fun `los dias de la proyeccion usan un decimal`() {
+        assertEquals("26.5", formatDays(26.46, java.util.Locale.US))
+        assertEquals("26,5", formatDays(26.46, java.util.Locale.forLanguageTag("es-ES")))
     }
 
     @Test

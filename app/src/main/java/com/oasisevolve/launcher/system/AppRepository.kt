@@ -1,5 +1,6 @@
 package com.oasisevolve.launcher.system
 
+import android.app.ActivityOptions
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
+import com.oasisevolve.launcher.LaunchSource
 import com.oasisevolve.launcher.drawer.normalizeForSearch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -201,9 +203,13 @@ class AppRepository(
             .toBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
     }
 
-    fun launch(entry: AppEntry) {
+    /** Con [source], la app se abre creciendo desde su icono. */
+    fun launch(entry: AppEntry, source: LaunchSource?) {
+        val options = source?.let {
+            ActivityOptions.makeClipRevealAnimation(it.view, 0, 0, it.view.width, it.view.height).toBundle()
+        }
         try {
-            launcherApps.startMainActivity(entry.component, entry.user, null, null)
+            launcherApps.startMainActivity(entry.component, entry.user, source?.bounds, options)
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(context, "No se pudo abrir ${entry.label}", Toast.LENGTH_SHORT).show()
             refresh()

@@ -54,6 +54,11 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.storage.Accent
 import com.oasisevolve.launcher.storage.LauncherSettings
@@ -61,7 +66,7 @@ import com.oasisevolve.launcher.storage.ThemeMode
 import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.system.AppIconImage
 
-private fun darkColors(accent: Accent): ColorScheme {
+fun darkColors(accent: Accent): ColorScheme {
     val primary = Color(accent.dark)
     return darkColorScheme(
         primary = primary,
@@ -117,14 +122,29 @@ fun EvolveTheme(settings: LauncherSettings, iconRevision: Int, content: @Composa
     val density = LocalDensity.current
 
     val view = LocalView.current
-    SideEffect {
+    val immersive = settings.immersiveMode
+    fun applySystemBars() {
         (view.context as? Activity)?.window?.let { window ->
             WindowCompat.getInsetsController(window, view).apply {
                 val darkIcons = wallpaperContent != Color.White
                 isAppearanceLightStatusBars = darkIcons
                 isAppearanceLightNavigationBars = darkIcons
+                // Solo la barra superior y solo en el launcher. Al deslizar reaparece un momento.
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                if (immersive) hide(WindowInsetsCompat.Type.statusBars()) else show(WindowInsetsCompat.Type.statusBars())
             }
         }
+    }
+    SideEffect { applySystemBars() }
+
+    // Volver de otra app o de un diálogo puede restaurar la barra: se vuelve a aplicar.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, immersive) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) applySystemBars()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     CompositionLocalProvider(

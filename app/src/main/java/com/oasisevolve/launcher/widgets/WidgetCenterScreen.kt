@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.storage.LauncherSettings
-import com.oasisevolve.launcher.storage.WidgetTarget
 import com.oasisevolve.launcher.ui.onWallpaper
 
 @Composable
@@ -71,7 +70,6 @@ fun WidgetCenterScreen(
         items(settings.widgetIds, key = { it }) { id ->
             WidgetCard(
                 id = id,
-                target = WidgetTarget.CENTER,
                 heightDp = settings.widgetHeights[id],
                 editing = editing,
                 viewModel = viewModel,

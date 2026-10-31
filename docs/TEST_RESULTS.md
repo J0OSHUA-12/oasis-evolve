@@ -1,92 +1,68 @@
-# Resultados de pruebas (v0.2.0, 2026-10-31)
+# Resultados de pruebas (v0.3.0, 2026-10-31)
 
-**Entorno:** emulador Android 36 x86_64 (`sdk_gphone64_x86_64`), 1080×2400, en una carpeta temporal.
-**No se ha probado en un teléfono real.**
+**Entorno:** emulador Android 36 x86_64 (1080×2400), en una carpeta temporal, con gestos inyectados por `adb`.
+**Teléfono real:** el usuario probó la v0.2.0 en su Tecno LJ7 (HiOS 16.3, Android 16). La v0.3.0 aún no estaba instalada en él al escribir esto.
 
 ## Pruebas unitarias
 
-`.\gradlew.bat :app:testDebugUnitTest`: **39 de 39 correctas** (`UsageCalculatorTest` 14, `OrganizerTest` 15, `LogicTest` 10).
+`.\gradlew.bat :app:testDebugUnitTest`: **64 de 64 correctas** (`OrganizerTest` 28, `LogicTest` 19, `UsageCalculatorTest` 17).
+Cubren cuadrícula, solapes, carpetas, dock, composición inicial, migración desde 0.2, estadísticas, comparaciones y progreso del tiempo.
 
-## Pruebas en el emulador
+## Criterios de aceptación
 
-Ejecutadas con `adb` e interfaz real (toques, arrastres y lectura de la jerarquía de vistas), revisando capturas.
-
-### Fase 1
-
-| # | Prueba | Resultado |
+| Criterio | Resultado | Cómo se comprobó |
 |---|---|---|
-| 1 | Instalar APK, asignar launcher por `cmd role` y pulsar Inicio | Correcto |
-| 2 | Botón de la app para establecerlo como predeterminado | **No ejecutado** |
-| 3 | Navegar las pantallas; Inicio y Atrás | Correcto |
-| 4 | Estado inicial sin apps automáticas; elegir apps; abrir app | Correcto |
-| 5 | Nivel 4, búsqueda deliberada e interrupción | Correcto |
-| 6 | Uso con y sin Usage Access | Correcto, sin inventar datos |
-| 7 | Notas; compartir abre el selector | Correcto; no se compartió con Obsidian |
-| 8 | Riel de letras y búsqueda por iniciales | Correcto |
-| 9 | Desinstalar y reinstalar una app | La lista se actualiza sola |
+| Dock como la captura | Cumplido en emulador | Captura; falta verlo con tus 4 apps |
+| Iconos del dock funcionales | Cumplido | Teléfono y Cámara abren; reemplazar, quitar y mover |
+| Previsualización de widgets | Cumplido | Vistas previas reales de Calendar y Chrome; widgets propios dibujados |
+| Mover apps y widgets | Cumplido | Arrastre real, destino libre y destino rechazado |
+| Carpetas funcionales | Cumplido | Crear arrastrando, abrir, añadir, reordenar, renombrar, deshacer |
+| Immersive oculta la barra | Cumplido en depuración | `visible=false` en `dumpsys`; captura sin barra; se recupera al desactivar |
+| Porcentajes correctos | Cumplido | Comprobados a mano a las 20:15 del 31 de octubre: 84, 83, 99, 66 y 83 %, y pruebas de bisiestos |
+| Estadísticas reales | Cumplido | Apps usadas durante la prueba, con sus tiempos y aperturas |
+| Sin ajustes en la esquina de Inicio | Cumplido | Jerarquía de vistas y captura |
+| Ajustes persistentes | Cumplido | Reinicio del proceso |
+| Sin pérdida de funciones | Cumplido en emulador | Actualización desde 0.2 y repetición de funciones anteriores |
 
-### Fase 2
+## Otras pruebas en el emulador
 
-| # | Prueba | Resultado |
-|---|---|---|
-| 10 | Arrastrar para reordenar en Inicio, y conservar tras reiniciar | Correcto |
-| 11 | Pulsación larga sin mover abre opciones; tocar abre la app | Correcto |
-| 12 | Arrastrar dentro de «Quiero usar más» | Correcto |
-| 13 | Carpeta: crear, añadir, abrir app, conservar tras reiniciar | Correcto |
-| 14 | Carpeta: renombrar, sacar app, deshacer | Correcto, tras corregir un fallo |
-| 15 | Widget en Inicio: añadir, cambiar tamaño, conservar | Correcto (Chrome Dino) |
-| 16 | Biblioteca: vista expandida y arrastrar una app a otra categoría | Correcto |
-| 17 | Categorías: crear, rechazar repetida, renombrar, ocultar, mostrar, asignar | Correcto |
-| 18 | Paquete de iconos de prueba: aparece, se aplica y se conserva | Correcto |
-| 19 | Forma y tamaño de icono | Correcto, comprobado en captura |
-| 20 | Acento, tipografía, tamaño de texto, tema oscuro | Correcto, comprobado en captura |
-| 21 | Espaciado, márgenes, columnas y reducir animaciones | Aplicado sin fallos |
-| 22 | Actualizar desde el APK v0.1 con datos | Conserva apps, nivel y nota |
-| 23 | Versión release con R8, firmada con clave de depuración | Arrastre, carpeta, abrir app, persistencia, uso, biblioteca y nota correctos |
-| 24 | Cristal esmerilado, con dos API oficiales | **Sin desenfoque visible en el emulador** |
-| 25 | Registro de fallos (`logcat -b crash`) | Vacío en todas las tandas |
+| Prueba | Resultado |
+|---|---|
+| Actualizar desde el APK 0.2.0 con apps, carpeta, «Quiero usar más» y nota | Se conserva todo |
+| Elegir foto real en el selector del sistema y conservarla tras reiniciar | Correcto |
+| Pulsación larga sobre un widget | Entra en edición; un toque corto sigue abriendo el widget |
+| Soltar una app sobre un widget | Rechazado; la app no se mueve |
+| Mover widget a hueco libre y redimensionar | Correcto y persistente |
+| Dock a celda libre y cuadrícula al dock | Correcto y persistente |
+| Restaurar distribución | Correcto, con confirmación; conserva lo colocado |
+| Apps útiles: sin títulos, añadir apps, agrupar | Correcto |
+| Ajustes desde la última pantalla y desde el modo edición | Correcto |
+| Regresiones: drawer, nivel 4, búsqueda deliberada, interrupción y Atrás, biblioteca | Correcto |
+| Versión release con R8: carpetas, edición, galería, persistencia, uso | Correcto |
+| Registro de fallos (`logcat -b crash`) | Vacío en todas las tandas |
 
-## Fallos encontrados y corregidos
+## Fallos encontrados y corregidos en esta versión
 
-**Fase 1:**
-
-1. Texto ilegible sobre fondos oscuros con tema claro.
-2. Hoja de acciones a media altura, que ocultaba niveles.
-3. Búsqueda deliberada visible al volver a la pantalla.
-4. Atrás no cerraba la interrupción.
-5. «1 días» y Gmail en una categoría incorrecta.
-6. Tarjetas de la biblioteca con alturas desiguales.
-7. Texto invisible en tema oscuro.
-8. Iconos de la barra de estado oscuros sobre fondos oscuros.
-
-**Fase 2:**
-
-9. Al renombrar, el cursor quedaba al principio y el texto se mezclaba.
-10. Con teclado físico, cerrar una hoja hacía saltar el carrusel a otra página.
-11. El icono de un paquete desinstalado podía seguir visible.
-12. Carpeta poco visible en tema oscuro.
-13. El tiempo en otros launchers contaba como uso de apps.
+1. Mantener pulsado un widget acababa abriendo su app al soltar.
+2. «Faltan 0 días» cuando quedaban horas.
+3. Servicios del sistema mostrados con su nombre interno en las estadísticas.
 
 ## Medidas
 
 Solo orientativas: emulador con renderizado por software.
 
-| Medida | Depuración v0.1 | Release v0.2 |
+| Medida | Release v0.2 | Release v0.3 |
 |---|---|---|
-| Arranque en frío | 1,76–1,78 s (`am start -W`) | 1,05–1,37 s (`Displayed` de logcat, 3 medidas) |
-| Memoria (TOTAL PSS) | unos 68 MB | unos 114 MB, de ellos 64 MB de código mapeado |
-| APK | 12,7 MB | 1,85 MB |
-
-Los métodos de arranque difieren, así que no son directamente comparables. La memoria de release es mayor de lo esperado y
-debe medirse de nuevo en el teléfono real: en un emulador nuevo, el código puede no estar compilado de forma óptima. No se midió batería.
+| Arranque en frío (`Displayed` de logcat) | 1,05–1,37 s | 1,42–1,55 s, con widgets propios y datos de uso |
+| Memoria (TOTAL PSS) | unos 114 MB | unos 89 MB |
+| APK | 1,85 MB | 2,09 MB |
 
 ## Sin verificar
 
-- Teléfono real, fabricante y ahorro de batería.
-- Fluidez real de las animaciones y del arrastre con el dedo: las pruebas usaron gestos inyectados.
-- Cristal esmerilado en un dispositivo físico.
-- Teclado real en los diálogos.
-- Conflictos entre gestos del sistema y el carrusel.
-- Comparación con periodos anteriores, con historial real.
-- Paquetes de iconos publicados, y la mayoría de widgets de terceros.
-- Perfil de trabajo, fondo claro con `HINT_SUPPORTS_DARK_TEXT`, versiones de Android anteriores a la 36.
+- La v0.3.0 en el teléfono real, con tus apps, tu densidad de pantalla y HiOS.
+- Fluidez del arrastre con el dedo y conflictos con los gestos de HiOS.
+- Consumo de batería.
+- Comparación con periodos anteriores con historial real.
+- Animación de apertura en HiOS y cristal esmerilado.
+- Ajustar el semestre académico desde el selector de fechas en la interfaz: su cálculo sí tiene pruebas.
+- Paquetes de iconos publicados y la mayoría de widgets de terceros.

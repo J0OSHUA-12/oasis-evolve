@@ -22,17 +22,18 @@ Estado en Oasis Evolve: ✅ en v0.1 · 🟡 parcial en v0.1 · ⏳ fase posterio
 | Teclado automático | Sí | ID | Conservar | Ajuste | ⏳ |
 | Instaladas recientemente (3 días) | Sí | ID | Conservar | Sección opcional | ⏳ |
 | Apps web y atajos del navegador | Sí | ID | Conservar | `CONFIRM_PIN_SHORTCUT` | ⏳ |
-| Renombrar apps | `RenamedApp` | ID | Conservar | Tabla propia | ⏳ |
-| Carpetas | `Folder`, `FolderApp` | ID | Modificar | Carpetas opcionales en pantalla de útiles | ⏳ |
-| Paquetes de iconos | Sí | ID | Conservar | Fase 2 | ⏳ |
+| Renombrar apps | `RenamedApp` | ID | Conservar | Pendiente | ⏳ |
+| Carpetas | `Folder`, `FolderApp` | ID | Modificar | Carpetas en Inicio y Apps útiles | ✅ |
+| Paquetes de iconos | Sí | ID | Conservar | Formato `appfilter.xml` | ✅ |
 | Pantalla principal | Reloj, apps en lista, iconos laterales | ID | Modificar | Cuadrícula de iconos, dock, widgets | 🟡 |
 | Selección manual de apps en inicio | Sí, con límite Pro | ID | Conservar | Sin límite, sin autopoblar | ✅ |
-| Reordenar con arrastrar | Mover arriba/abajo | PC | Modificar | Mover en v0.1; arrastrar en Fase 2 | 🟡 |
+| Reordenar con arrastrar | Mover arriba/abajo | PC | Modificar | Arrastrar en cuadrículas; el dock aún usa «Mover» | 🟡 |
 | Seis pantallas | Número exacto incierto | NV | Cambiar | 2 izquierda, inicio, 3 derecha | ✅ |
 | Apps que aportan valor | No existe | NUEVA | Nueva | Selección manual y categoría «Quiero usar más» | ✅ |
 | App Library visual | No existe | NUEVA | Nueva | Carpetas automáticas, búsqueda, desactivable | 🟡 |
 | Edición manual de categorías | No existe | NUEVA | Nueva | Mover app de categoría | ✅ |
-| Crear, renombrar y ocultar categorías | No existe | NUEVA | Nueva | Fase 2 | ⏳ |
+| Crear, renombrar y ocultar categorías | No existe | NUEVA | Nueva | Editor de categorías y arrastre entre ellas | ✅ |
+| Vista compacta o expandida | No existe | NUEVA | Nueva | Selector en la biblioteca | ✅ |
 | Fondo real del dispositivo | Opción | ID | Cambiar | Siempre activo, sin opción | ✅ |
 | Fondos Lottie y temas de color | Sí | ID | Descartar | Sin fondos animados, con tema propio | ❌ |
 | Modo inmersivo / ocultar barra de estado | Sí | ID | Conservar | Ajuste | ⏳ |
@@ -66,12 +67,12 @@ Estado en Oasis Evolve: ✅ en v0.1 · 🟡 parcial en v0.1 · ⏳ fase posterio
 | Función | Oasis original | Clase | Decisión | Oasis Evolve | Estado |
 |---|---|---|---|---|---|
 | Widgets de terceros | `AppWidgetHost` | ID | Conservar | En Widget Center con API oficial | 🟡 |
-| Redimensionar widgets | Sí | ID | Conservar | Fase 2 | ⏳ |
-| Widgets en inicio | Sí | ID | Conservar | Fase 2 | ⏳ |
+| Redimensionar widgets | Sí | ID | Conservar | Cuatro alturas predefinidas | 🟡 |
+| Widgets en inicio | Sí | ID | Conservar | Añadir, ordenar y quitar | ✅ |
 | Doble toque para bloquear | Device admin | ID | Evaluar | Fase 3; alternativa en limitaciones | ⏳ |
 | Deslizar arriba/abajo | Sí | ID | Conservar | Fase 3 con acciones asignables | ⏳ |
 | Show App Icons | Sí | ID | Modificar | Solo afecta a pantallas con iconos; drawer siempre textual | ✅ |
-| Tipografías | 15 fuentes | ID | Modificar | Fuentes con licencia libre; no se copian las de Oasis | ⏳ |
+| Tipografías | 15 fuentes | ID | Modificar | Tres fuentes OFL y la del sistema; no se copian las de Oasis | ✅ |
 | Facebook, Firebase, AD_ID | Sí | ID | Descartar | Sin analítica ni permiso `INTERNET` | ❌ |
 | Compra y licencia | Billing, PairIP | ID | Descartar | No aplica | ❌ |
 | Modo estudio, perfiles | No existe | NUEVA | Nueva | Fase 5 | ⏳ |

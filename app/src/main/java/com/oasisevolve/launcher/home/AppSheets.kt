@@ -32,10 +32,10 @@ import com.oasisevolve.launcher.LauncherState
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.drawer.filterBySearch
 import com.oasisevolve.launcher.focus.AccessLevel
-import com.oasisevolve.launcher.library.DEFAULT_CATEGORIES
 import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.ui.AppIcon
 import com.oasisevolve.launcher.ui.SearchField
+import com.oasisevolve.launcher.ui.TextDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +46,9 @@ fun AppActionsSheet(
     onDismiss: () -> Unit,
 ) {
     var chooseCategory by remember { mutableStateOf(false) }
+    var newFolder by remember { mutableStateOf(false) }
+    val currentFolder = state.folderOf(app)
+    val otherFolders = state.settings.folders.filter { it.id != currentFolder?.id }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -60,7 +63,7 @@ fun AppActionsSheet(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AppIcon(app, viewModel, 40.dp)
+                AppIcon(app, viewModel, size = 40.dp)
                 Text(app.label, style = MaterialTheme.typography.titleLarge)
             }
 
@@ -68,7 +71,7 @@ fun AppActionsSheet(
             AppList.entries.forEach { list ->
                 val inList = app.key in state.keys(list)
                 CheckRow(list.label, inList) { viewModel.toggle(list, app) }
-                if (inList) {
+                if (inList && list == AppList.DOCK) {
                     Row(
                         Modifier.padding(start = 48.dp),
                         horizontalArrangement = Arrangement.spacedBy(20.dp),
@@ -78,6 +81,26 @@ fun AppActionsSheet(
                     }
                 }
             }
+            Text(
+                "En las cuadrículas, mantén pulsada una app y arrástrala para cambiarla de sitio.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            SectionTitle("Carpeta")
+            currentFolder?.let { folder ->
+                ActionRow("Sacar de «${folder.name}»") {
+                    viewModel.removeFromFolder(folder.id, app)
+                    onDismiss()
+                }
+            }
+            otherFolders.forEach { folder ->
+                ActionRow("Añadir a «${folder.name}»") {
+                    viewModel.addToFolder(folder.id, app)
+                    onDismiss()
+                }
+            }
+            ActionRow("Crear carpeta nueva") { newFolder = true }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionTitle("Dificultad de acceso")
@@ -108,7 +131,7 @@ fun AppActionsSheet(
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             ActionRow("Categoría: ${state.category(app)}") { chooseCategory = !chooseCategory }
             if (chooseCategory) {
-                DEFAULT_CATEGORIES.forEach { category ->
+                state.settings.categories.forEach { category ->
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -133,6 +156,22 @@ fun AppActionsSheet(
                 onDismiss()
             }
         }
+    }
+
+    if (newFolder) {
+        TextDialog(
+            title = "Nombre de la carpeta",
+            onConfirm = { name ->
+                if (name.isBlank()) {
+                    "Escribe un nombre"
+                } else {
+                    viewModel.createFolder(app, name.trim())
+                    onDismiss()
+                    null
+                }
+            },
+            onDismiss = { newFolder = false },
+        )
     }
 }
 
@@ -170,11 +209,52 @@ fun AppPickerSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        AppIcon(app, viewModel, 36.dp)
+                        AppIcon(app, viewModel, size = 36.dp)
                         Text(app.label, Modifier.weight(1f))
                         Checkbox(checked = app.key in selected, onCheckedChange = { viewModel.toggle(list, app) })
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Menú al mantener pulsado un espacio libre de la pantalla principal. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeMenuSheet(
+    hasWidgets: Boolean,
+    onChooseApps: () -> Unit,
+    onAddWidget: () -> Unit,
+    onEditWidgets: () -> Unit,
+    onSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .padding(horizontal = 22.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding(),
+        ) {
+            Text("Pantalla principal", style = MaterialTheme.typography.titleLarge)
+            ActionRow("Elegir apps") {
+                onDismiss()
+                onChooseApps()
+            }
+            ActionRow("Añadir widget") {
+                onDismiss()
+                onAddWidget()
+            }
+            if (hasWidgets) {
+                ActionRow("Editar widgets") {
+                    onDismiss()
+                    onEditWidgets()
+                }
+            }
+            ActionRow("Ajustes") {
+                onDismiss()
+                onSettings()
             }
         }
     }

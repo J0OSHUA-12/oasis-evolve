@@ -8,6 +8,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.content.Intent
 import com.oasisevolve.launcher.LauncherViewModel
+import com.oasisevolve.launcher.storage.WidgetTarget
 
 const val REQUEST_CONFIGURE_WIDGET = 4101
 private const val HOST_ID = 2048
@@ -17,6 +18,7 @@ class WidgetHostController(private val context: Context) {
     private val manager = AppWidgetManager.getInstance(context)
     private val host = AppWidgetHost(context, HOST_ID)
     private var pendingId: Int? = null
+    private var pendingTarget = WidgetTarget.CENTER
 
     fun providers(): List<AppWidgetProviderInfo> =
         manager.installedProviders.sortedBy { it.loadLabel(context.packageManager).lowercase() }
@@ -34,12 +36,14 @@ class WidgetHostController(private val context: Context) {
 
     fun startAdding(
         provider: AppWidgetProviderInfo,
+        target: WidgetTarget,
         activity: Activity,
         viewModel: LauncherViewModel,
         requestBind: (Intent) -> Unit,
     ) {
         val id = host.allocateAppWidgetId()
         pendingId = id
+        pendingTarget = target
         if (manager.bindAppWidgetIdIfAllowed(id, provider.profile, provider.provider, null)) {
             configureOrSave(activity, viewModel)
         } else {
@@ -62,7 +66,13 @@ class WidgetHostController(private val context: Context) {
 
     fun remove(id: Int, viewModel: LauncherViewModel) {
         host.deleteAppWidgetId(id)
-        viewModel.updateSettings { it.copy(widgetIds = it.widgetIds - id) }
+        viewModel.updateSettings {
+            it.copy(
+                widgetIds = it.widgetIds - id,
+                homeWidgetIds = it.homeWidgetIds - id,
+                widgetHeights = it.widgetHeights - id,
+            )
+        }
     }
 
     private fun configureOrSave(activity: Activity, viewModel: LauncherViewModel) {
@@ -81,8 +91,12 @@ class WidgetHostController(private val context: Context) {
 
     private fun savePending(viewModel: LauncherViewModel) {
         val id = pendingId ?: return
+        val target = pendingTarget
         pendingId = null
-        viewModel.updateSettings { it.copy(widgetIds = it.widgetIds + id) }
+        viewModel.updateSettings {
+            if (target == WidgetTarget.HOME) it.copy(homeWidgetIds = it.homeWidgetIds + id)
+            else it.copy(widgetIds = it.widgetIds + id)
+        }
     }
 
     private fun discardPending() {

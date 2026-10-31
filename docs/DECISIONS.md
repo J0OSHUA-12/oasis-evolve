@@ -15,6 +15,16 @@
 | 11 | 2026-10-31 | Orientación vertical fija | Simplifica la v0.1; puede revisarse |
 | 12 | 2026-10-31 | Textos en español directamente en el código | Proyecto personal; migrar a `strings.xml` si se traduce |
 | 13 | 2026-10-31 | Nombre «Oasis Evolve» conservado por ser el nombre que pediste | Antes de publicarla, conviene otro nombre para evitar confusión con Oasis |
+| 14 | 2026-10-31 | Arrastre propio sobre la cuadrícula, sin biblioteca externa | Son pocas líneas y evitan una dependencia |
+| 15 | 2026-10-31 | El orden provisional solo se guarda al soltar | Evita una escritura por cada elemento que cruza el dedo |
+| 16 | 2026-10-31 | Una app vive en una sola carpeta; borrar una carpeta devuelve sus apps | Comportamiento predecible y sin pérdida de datos |
+| 17 | 2026-10-31 | Iconos adaptativos dibujados sin la máscara del sistema | Permite aplicar la forma elegida; los de un paquete no se recortan |
+| 18 | 2026-10-31 | Fuentes Manrope, Outfit y JetBrains Mono, bajo licencia OFL | Libres de incluir; licencias en `docs/licenses` y ninguna tomada del APK de Oasis |
+| 19 | 2026-10-31 | Las páginas no visibles rechazan el foco | Con teclado físico, el foco hacía saltar el carrusel |
+| 20 | 2026-10-31 | Ocultar una categoría también la excluye de la búsqueda de la biblioteca | «Ocultar» debe ser coherente; sus apps siguen en el App Drawer |
+| 21 | 2026-10-31 | Excluir todos los launchers del tiempo de uso | Estar en la pantalla de inicio no es usar una app |
+| 22 | 2026-10-31 | Cristal esmerilado experimental y desactivado | No se pudo comprobar el efecto; Android no permite leer el fondo para desenfocar solo las tarjetas |
+| 23 | 2026-10-31 | Módulo `fixtures/iconpack` solo para pruebas | Permite probar paquetes de iconos reales; nunca forma parte del launcher |
 
 ## Decisiones pendientes de tu aprobación
 

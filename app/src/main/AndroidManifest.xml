@@ -17,6 +17,18 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- Otros launchers: su tiempo en pantalla no cuenta como uso de apps. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+        <!-- Paquetes de iconos con el formato habitual de los launchers. -->
+        <intent>
+            <action android:name="org.adw.launcher.THEMES" />
+        </intent>
+        <intent>
+            <action android:name="com.novalauncher.THEME" />
+        </intent>
     </queries>
 
     <application

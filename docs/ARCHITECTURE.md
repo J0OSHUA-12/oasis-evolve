@@ -39,6 +39,17 @@ LauncherApps    DataStore (JSON)   Room (notas)    UsageEvents      AppWidgetHos
 | `system` | `LauncherApps`, launcher predeterminado |
 | `ui` | Tema, tarjetas, icono y contraste sobre el fondo |
 
+## Arrastre y organización
+
+- `ui/Reorder.kt`: estado y gesto de arrastre sobre una cuadrícula perezosa. Reordena en vivo o, en la biblioteca, solo indica el destino.
+- `home/EntryGrid.kt`: orden provisional durante el arrastre y elementos de cuadrícula (app o carpeta).
+- `storage/Organizer.kt`: operaciones puras sobre carpetas, categorías y orden, cubiertas por `OrganizerTest`.
+- En las listas, una carpeta se guarda como la clave `folder:<id>` entre las claves de las apps.
+
+## Módulo de pruebas
+
+`fixtures/iconpack` genera un paquete de iconos mínimo para probar la carga. No se incluye en el launcher.
+
 ## Privacidad
 
 El manifest elimina explícitamente `INTERNET`, de modo que ninguna dependencia pueda añadirlo. Se puede comprobar con:

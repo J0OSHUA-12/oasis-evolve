@@ -53,7 +53,7 @@ com.oasisevolve.launcher
 |---|---|---|
 | 0 | Investigación y documentación | Completa con las limitaciones descritas |
 | 1 | Base funcional: compila, se instala, seis pantallas, apps reales, preferencias | Ver `docs/FEATURES.md` |
-| 2 | Interfaz premium: arrastrar, carpetas, widgets en inicio, temas, iconos | Pendiente |
+| 2 | Interfaz premium: arrastrar, carpetas, widgets en inicio, temas, iconos | Implementada; cristal sin efecto verificado |
 | 3 | Focus Mode, tipos de interrupción, filtro de notificaciones, gestos | Pendiente |
 | 4 | Resumen diario propio, proyecciones, gráficas, límites | Pendiente |
 | 5 | Modo estudio, perfiles, widgets académicos, Obsidian, exportar | Pendiente |

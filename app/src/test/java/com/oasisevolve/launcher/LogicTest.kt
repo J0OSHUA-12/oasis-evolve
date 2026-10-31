@@ -7,6 +7,7 @@ import com.oasisevolve.launcher.focus.AccessLevel
 import com.oasisevolve.launcher.library.autoCategory
 import com.oasisevolve.launcher.storage.LauncherSettings
 import com.oasisevolve.launcher.storage.ThemeMode
+import com.oasisevolve.launcher.system.normalizeAppFilterComponent
 import com.oasisevolve.launcher.wellbeing.ProgressPeriod
 import com.oasisevolve.launcher.wellbeing.periodProgress
 import org.junit.Assert.assertEquals
@@ -41,6 +42,17 @@ class LogicTest {
     fun `el riel usa letras sin acento y agrupa el resto`() {
         assertEquals('A', railLetter("Ágora"))
         assertEquals('#', railLetter("7zip"))
+    }
+
+    @Test
+    fun `el formato de los paquetes de iconos se normaliza`() {
+        assertEquals(
+            "com.app/com.app.Main",
+            normalizeAppFilterComponent("ComponentInfo{com.app/com.app.Main}"),
+        )
+        assertEquals("com.app/com.app.Main", normalizeAppFilterComponent(" ComponentInfo{com.app/.Main} "))
+        assertNull(normalizeAppFilterComponent("no es un componente"))
+        assertNull(normalizeAppFilterComponent("ComponentInfo{sin-clase}"))
     }
 
     @Test

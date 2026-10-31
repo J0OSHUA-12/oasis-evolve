@@ -31,8 +31,8 @@ class MainActivity : ComponentActivity() {
             LauncherRoot(
                 viewModel = viewModel,
                 homeRequests = homeRequests,
-                onPickWidget = { provider ->
-                    widgets.startAdding(provider, this, viewModel) { intent -> bindWidget.launch(intent) }
+                onPickWidget = { provider, target ->
+                    widgets.startAdding(provider, target, this, viewModel) { intent -> bindWidget.launch(intent) }
                 },
             )
         }
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.refreshUsage()
+        viewModel.onResume()
     }
 
     @Deprecated("AppWidgetHost entrega aquí el resultado de la configuración del widget.")

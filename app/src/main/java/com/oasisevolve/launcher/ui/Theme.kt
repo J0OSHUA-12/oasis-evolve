@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,51 +43,78 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.oasisevolve.launcher.LauncherViewModel
+import com.oasisevolve.launcher.storage.Accent
+import com.oasisevolve.launcher.storage.LauncherSettings
 import com.oasisevolve.launcher.storage.ThemeMode
 import com.oasisevolve.launcher.system.AppEntry
+import com.oasisevolve.launcher.system.AppIconImage
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFF6EE7B7),
-    onPrimary = Color(0xFF06281F),
-    surface = Color(0xFF12181A),
-    onSurface = Color(0xFFF4F7F6),
-    onSurfaceVariant = Color(0xFFB9C4C1),
-    background = Color.Transparent,
-    onBackground = Color(0xFFF4F7F6),
-    outline = Color(0x33FFFFFF),
-)
+private fun darkColors(accent: Accent): ColorScheme {
+    val primary = Color(accent.dark)
+    return darkColorScheme(
+        primary = primary,
+        onPrimary = Color(0xFF0B1512),
+        secondaryContainer = primary.copy(alpha = 0.28f),
+        onSecondaryContainer = Color(0xFFF4F7F6),
+        surface = Color(0xFF12181A),
+        surfaceContainerLow = Color(0xFF171E20),
+        onSurface = Color(0xFFF4F7F6),
+        onSurfaceVariant = Color(0xFFB9C4C1),
+        background = Color.Transparent,
+        onBackground = Color(0xFFF4F7F6),
+        outline = Color(0x33FFFFFF),
+    )
+}
 
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF047857),
-    onPrimary = Color.White,
-    surface = Color(0xFFF6F8F7),
-    onSurface = Color(0xFF10201B),
-    onSurfaceVariant = Color(0xFF47564F),
-    background = Color.Transparent,
-    onBackground = Color(0xFF10201B),
-    outline = Color(0x33000000),
-)
+private fun lightColors(accent: Accent): ColorScheme {
+    val primary = Color(accent.light)
+    return lightColorScheme(
+        primary = primary,
+        onPrimary = Color.White,
+        secondaryContainer = primary.copy(alpha = 0.18f),
+        onSecondaryContainer = Color(0xFF10201B),
+        surface = Color(0xFFF6F8F7),
+        surfaceContainerLow = Color(0xFFF0F3F2),
+        onSurface = Color(0xFF10201B),
+        onSurfaceVariant = Color(0xFF47564F),
+        background = Color.Transparent,
+        onBackground = Color(0xFF10201B),
+        outline = Color(0x33000000),
+    )
+}
+
+/** Tamaño de icono elegido en ajustes. */
+val LocalIconSize = staticCompositionLocalOf { 56.dp }
+
+/** Radio de las esquinas del icono como fracción de su tamaño. */
+val LocalIconCorner = staticCompositionLocalOf { 0.28f }
+
+/** Cambia al cambiar de paquete de iconos, para recargar los iconos visibles. */
+val LocalIconRevision = staticCompositionLocalOf { 0 }
 
 @Composable
-fun EvolveTheme(mode: ThemeMode, content: @Composable () -> Unit) {
-    val dark = when (mode) {
+fun EvolveTheme(settings: LauncherSettings, iconRevision: Int, content: @Composable () -> Unit) {
+    val dark = when (settings.themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    val colors = if (dark) DarkColors else LightColors
+    val colors = if (dark) darkColors(settings.accent) else lightColors(settings.accent)
+    val typography = remember(settings.font) { typographyFor(settings.font) }
     val wallpaperContent = rememberWallpaperContentColor()
+    val density = LocalDensity.current
 
     val view = LocalView.current
     SideEffect {
@@ -99,8 +127,14 @@ fun EvolveTheme(mode: ThemeMode, content: @Composable () -> Unit) {
         }
     }
 
-    CompositionLocalProvider(LocalWallpaperContent provides wallpaperContent) {
-        MaterialTheme(colorScheme = colors) {
+    CompositionLocalProvider(
+        LocalWallpaperContent provides wallpaperContent,
+        LocalIconSize provides settings.iconSizeDp.dp,
+        LocalIconCorner provides settings.iconShape.cornerFraction,
+        LocalIconRevision provides iconRevision,
+        LocalDensity provides Density(density.density, density.fontScale * settings.fontScale),
+    ) {
+        MaterialTheme(colorScheme = colors, typography = typography) {
             // Sin esto, el texto fuera de un Surface es negro también en el tema oscuro.
             CompositionLocalProvider(LocalContentColor provides colors.onSurface, content = content)
         }
@@ -158,7 +192,7 @@ fun GlassCard(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
         // Explícito: con un color translúcido, Surface no puede deducir el contraste del contenido.
         contentColor = MaterialTheme.colorScheme.onSurface,
-        border =BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -169,24 +203,70 @@ fun GlassCard(
 }
 
 @Composable
-fun AppIcon(app: AppEntry, viewModel: LauncherViewModel, size: Dp, modifier: Modifier = Modifier) {
-    val icon by produceState<ImageBitmap?>(null, app.key) { value = viewModel.icon(app) }
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(RoundedCornerShape(size * 0.28f)),
-    ) {
-        icon?.let {
-            Image(bitmap = it, contentDescription = null, modifier = Modifier.size(size))
-        } ?: Box(
-            Modifier
-                .size(size)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
-        )
+fun AppIcon(
+    app: AppEntry,
+    viewModel: LauncherViewModel,
+    modifier: Modifier = Modifier,
+    size: Dp = LocalIconSize.current,
+) {
+    val revision = LocalIconRevision.current
+    val icon by produceState<AppIconImage?>(null, app.key, revision) { value = viewModel.icon(app) }
+    val shape = RoundedCornerShape(size * LocalIconCorner.current)
+    val image = icon
+    Box(modifier.size(size)) {
+        if (image != null) {
+            // Los iconos de un paquete ya traen su forma: recortarlos los estropearía.
+            Image(
+                bitmap = image.bitmap,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(size)
+                    .then(if (image.clipToShape) Modifier.clip(shape) else Modifier),
+            )
+        } else {
+            Box(
+                Modifier
+                    .size(size)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f), shape),
+            )
+        }
     }
 }
 
 /** Icono con nombre opcional. Si los iconos están desactivados, muestra solo el nombre. */
+@Composable
+fun AppTileContent(
+    app: AppEntry,
+    viewModel: LauncherViewModel,
+    showIcon: Boolean,
+    showLabel: Boolean,
+    modifier: Modifier = Modifier,
+    onSurface: Boolean = false,
+) {
+    Column(
+        modifier = modifier.padding(vertical = 6.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (showIcon) AppIcon(app, viewModel)
+        if (showLabel || !showIcon) {
+            TileLabel(app.label, onSurface)
+        }
+    }
+}
+
+@Composable
+fun TileLabel(text: String, onSurface: Boolean = false) {
+    val base = MaterialTheme.typography.labelSmall
+    Text(
+        text = text,
+        style = if (onSurface) base else base.onWallpaper(),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppTile(
@@ -196,29 +276,20 @@ fun AppTile(
     showLabel: Boolean,
     onLongPress: (AppEntry) -> Unit,
     modifier: Modifier = Modifier,
-    iconSize: Dp = 56.dp,
+    onSurface: Boolean = false,
 ) {
-    Column(
+    AppTileContent(
+        app = app,
+        viewModel = viewModel,
+        showIcon = showIcon,
+        showLabel = showLabel,
+        onSurface = onSurface,
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClickLabel = "Abrir ${app.label}",
                 onClick = { viewModel.open(app) },
                 onLongClick = { onLongPress(app) },
-            )
-            .padding(vertical = 6.dp, horizontal = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        if (showIcon) AppIcon(app, viewModel, iconSize)
-        if (showLabel || !showIcon) {
-            Text(
-                text = app.label,
-                style = MaterialTheme.typography.labelSmall.onWallpaper(),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
+            ),
+    )
 }

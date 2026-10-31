@@ -25,6 +25,8 @@ Principio: cada permiso se pide solo cuando una función activada lo necesita.
 | Permiso | Motivo | Cómo se concede | Si se rechaza |
 |---|---|---|---|
 | `<queries>` con `MAIN`/`LAUNCHER` | Ver apps abribles; evita `QUERY_ALL_PACKAGES` | Automático | No aplica |
+| `<queries>` con `MAIN`/`HOME` | Excluir otros launchers del tiempo de uso | Automático | No aplica |
+| `<queries>` de paquetes de iconos | Listar paquetes instalados. Solo se leen sus recursos, nunca se ejecuta su código | Automático | No aplica |
 | `PACKAGE_USAGE_STATS` | Uso real en bienestar e interrupciones | Manual, en Acceso a datos de uso | El panel lo explica; lo demás funciona |
 | `REQUEST_DELETE_PACKAGES` | Abrir el diálogo de desinstalación | Automático; el sistema confirma | No aplica |
 

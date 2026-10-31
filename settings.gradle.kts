@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "OasisEvolve"
 include(":app")
+// Paquete de iconos mínimo: solo sirve para probar la carga de paquetes.
+include(":fixtures:iconpack")

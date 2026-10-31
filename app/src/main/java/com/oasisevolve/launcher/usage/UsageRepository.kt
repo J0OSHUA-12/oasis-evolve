@@ -4,6 +4,7 @@ import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
 import android.os.Process
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -85,8 +86,16 @@ class UsageRepository(private val context: Context) {
         )
     }
 
+    /** El tiempo en la pantalla de inicio no es uso de apps, sea este launcher u otro instalado. */
+    private fun launcherPackages(): Set<String> {
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        return context.packageManager.queryIntentActivities(home, 0)
+            .map { it.activityInfo.packageName }
+            .toSet() + ownPackage
+    }
+
     private fun summarize(start: Long, end: Long): UsageSummary =
-        computeUsage(readEvents(start, end), start, end, setOf(ownPackage))
+        computeUsage(readEvents(start, end), start, end, launcherPackages())
 
     private fun readEvents(start: Long, end: Long): Sequence<RawEvent> = sequence {
         val events = manager.queryEvents(start, end) ?: return@sequence

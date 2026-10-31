@@ -57,7 +57,7 @@ Llamadas, emergencias y Ajustes quedarán siempre fuera de todo bloqueo, y debe 
 - **Deslizar para notificaciones:** Oasis usa reflexión sobre una API oculta, que puede fallar según versión y fabricante. Se evaluará en la Fase 3.
 - **Doble toque para bloquear:** sin device admin ni accesibilidad, no existe una API pública directa para bloquear la pantalla. Se decidirá en la Fase 3.
 - **Widgets:** `AppWidgetHost` con Compose requiere `AndroidView`. Algunos widgets de terceros se comportan mal fuera de launchers conocidos. **[Probar]**
-- **Efecto cristal:** el desenfoque real sobre el fondo de pantalla se limita a API 31+ y tiene coste. Será opcional; v0.1 usa transparencia sin desenfoque.
+- **Efecto cristal:** el fondo pertenece a otra ventana, y Android restringe leerlo a apps normales, así que no se pueden desenfocar solo las tarjetas. La única vía es desenfocar lo que hay detrás de toda la ventana (API 31+). Se probaron `setBackgroundBlurRadius` y `FLAG_BLUR_BEHIND`: en el emulador ninguna produjo un efecto visible, aunque el sistema lo indicaba activo. **[Probar]** en un dispositivo físico.
 - **Notificaciones:** Android 15 puede ocultar contenido sensible, como códigos, a los listeners no confiables.
 
 ## Limitaciones de la verificación actual

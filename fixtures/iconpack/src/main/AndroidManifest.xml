@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:hasCode="false" android:label="Paquete de prueba">
+        <!-- Nunca se abre: solo declara que esta app es un paquete de iconos. -->
+        <activity
+            android:name="android.app.Activity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.adw.launcher.THEMES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

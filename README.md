@@ -3,14 +3,16 @@
 Launcher Android personal, nativo y local, inspirado en la filosofía minimalista de Oasis. Es una aplicación
 independiente, con su propio paquete, código y firma. No contiene código ni recursos de Oasis.
 
-**Estado:** v0.1.0, primera versión funcional. Consulta [qué funciona](docs/FEATURES.md) y
+**Estado:** v0.2.0, con la interfaz de la Fase 2. Consulta [qué funciona](docs/FEATURES.md) y
 [qué se probó realmente](docs/TEST_RESULTS.md).
 
 ## Las seis pantallas
 
 `Widgets ← Bienestar ← INICIO → Apps útiles → App Drawer → Biblioteca`
 
-Mantén pulsada cualquier app para colocarla, cambiar su nivel de acceso o su categoría.
+- Mantén pulsada una app para colocarla, cambiar su nivel de acceso, su carpeta o su categoría.
+- Mantén pulsada y arrastra para cambiarla de sitio.
+- Mantén pulsado un espacio libre de Inicio para elegir apps y añadir o editar widgets.
 
 ## Requisitos para compilar
 

@@ -38,7 +38,7 @@ Ejecutadas con `adb` e interfaz real (toques, deslizamientos y lectura de la jer
 | 22 | Riel de letras y búsqueda por iniciales | Correcto |
 | 23 | Reordenar, dock y «Quiero usar más» | Correcto |
 | 24 | Desinstalar y reinstalar una app | La lista se actualiza sola |
-| 25 | Tema oscuro y cambio de columnas | Aplicados sin fallos |
+| 25 | Tema oscuro y cambio de columnas | Correcto, tras corregir un fallo de contraste en las tarjetas |
 | 26 | Registro de fallos (`logcat -b crash`) | Vacío durante todas las pruebas |
 
 ## Fallos encontrados y corregidos en estas pruebas
@@ -49,6 +49,8 @@ Ejecutadas con `adb` e interfaz real (toques, deslizamientos y lectura de la jer
 4. Atrás no cerraba la interrupción, y el teclado absorbía la pulsación.
 5. «1 días» en la interrupción, y Gmail en la categoría incorrecta.
 6. Tarjetas de la biblioteca con alturas desiguales.
+7. Texto invisible en tema oscuro, en tarjetas y Ajustes: el color del contenido no estaba definido.
+8. Iconos de la barra de estado oscuros sobre fondos oscuros.
 
 ## Medidas
 

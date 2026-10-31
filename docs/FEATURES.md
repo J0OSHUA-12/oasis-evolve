@@ -24,6 +24,12 @@
 - Widgets con pantalla de configuración: se probó cancelar, no completar la configuración.
 - Perfil de trabajo: código presente, sin probar.
 
+## Problemas conocidos
+
+- En tema claro con fondo oscuro, los iconos de la barra de estado se ven blancos sobre la pantalla de Ajustes.
+- «Mover antes/después» es provisional hasta que exista arrastrar y soltar.
+- Si se cierra el proceso mientras se configura un widget, ese identificador queda sin liberar.
+
 ## Pendiente por fase
 
 **Fase 2:** arrastrar y soltar, carpetas, widgets en inicio, tamaños y espaciado configurables, efecto cristal real,

@@ -1,5 +1,6 @@
 package com.oasisevolve.launcher.ui
 
+import android.app.Activity
 import android.app.WallpaperColors
 import android.app.WallpaperManager
 import android.content.Context
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,6 +30,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -42,11 +45,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.storage.ThemeMode
 import com.oasisevolve.launcher.system.AppEntry
@@ -80,8 +85,25 @@ fun EvolveTheme(mode: ThemeMode, content: @Composable () -> Unit) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    CompositionLocalProvider(LocalWallpaperContent provides rememberWallpaperContentColor()) {
-        MaterialTheme(colorScheme = if (dark) DarkColors else LightColors, content = content)
+    val colors = if (dark) DarkColors else LightColors
+    val wallpaperContent = rememberWallpaperContentColor()
+
+    val view = LocalView.current
+    SideEffect {
+        (view.context as? Activity)?.window?.let { window ->
+            WindowCompat.getInsetsController(window, view).apply {
+                val darkIcons = wallpaperContent != Color.White
+                isAppearanceLightStatusBars = darkIcons
+                isAppearanceLightNavigationBars = darkIcons
+            }
+        }
+    }
+
+    CompositionLocalProvider(LocalWallpaperContent provides wallpaperContent) {
+        MaterialTheme(colorScheme = colors) {
+            // Sin esto, el texto fuera de un Surface es negro también en el tema oscuro.
+            CompositionLocalProvider(LocalContentColor provides colors.onSurface, content = content)
+        }
     }
 }
 
@@ -134,7 +156,9 @@ fun GlassCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        // Explícito: con un color translúcido, Surface no puede deducir el contraste del contenido.
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border =BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),

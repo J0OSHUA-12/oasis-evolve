@@ -3,6 +3,7 @@ package com.oasisevolve.launcher.widgets
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.widget.FrameLayout
@@ -90,8 +91,11 @@ private sealed interface GalleryEntry {
         override val name: String,
         override val appName: String,
         override val sizes: List<CellSize>,
+        val fromOtherLauncher: Boolean,
     ) : GalleryEntry
 }
+
+private const val OTHER_LAUNCHER_NOTE = "Es de otro launcher: puede quedar vacío aquí."
 
 private val BUILTINS = listOf(
     GalleryEntry.Builtin(HomeItemKind.CLOCK, listOf(CellSize(2, 2), CellSize(4, 2))),
@@ -140,11 +144,20 @@ fun WidgetGallerySheet(
         value = withContext(Dispatchers.IO) {
             val pm = context.packageManager
             val columns = state.settings.gridColumns
+            val launchers = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+                .map { it.activityInfo.packageName }
+                .toSet()
             controller.providers().map { info ->
                 val appName = runCatching {
                     pm.getApplicationLabel(pm.getApplicationInfo(info.provider.packageName, 0)).toString()
                 }.getOrDefault(info.provider.packageName)
-                GalleryEntry.Provider(info, controller.label(info), appName, sizesFor(context, info, columns))
+                GalleryEntry.Provider(
+                    info,
+                    controller.label(info),
+                    appName,
+                    sizesFor(context, info, columns),
+                    fromOtherLauncher = info.provider.packageName in launchers,
+                )
             }.sortedWith(compareBy({ it.appName.lowercase() }, { it.name.lowercase() }))
         }
     }
@@ -218,6 +231,13 @@ fun WidgetGallerySheet(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                if ((entry as? GalleryEntry.Provider)?.fromOtherLauncher == true) {
+                                    Text(
+                                        OTHER_LAUNCHER_NOTE,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                             Text(
                                 "${entry.sizes.first().label} celdas",
@@ -264,6 +284,9 @@ private fun WidgetDetail(
             description?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+        if ((entry as? GalleryEntry.Provider)?.fromOtherLauncher == true) {
+            Text(OTHER_LAUNCHER_NOTE, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         }
         Text("Tamaño aproximado: ${size.label} celdas", style = MaterialTheme.typography.bodyLarge)
         if (entry.sizes.size > 1) {

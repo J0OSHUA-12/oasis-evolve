@@ -3,7 +3,7 @@
 Launcher Android personal, nativo y local, inspirado en la filosofía minimalista de Oasis. Es una aplicación
 independiente, con su propio paquete, código y firma. No contiene código ni recursos de Oasis.
 
-**Estado:** v0.3.0, con cuadrícula libre, dock, galería de widgets y Bienestar rediseñado. Consulta [qué funciona](docs/FEATURES.md) y
+**Estado:** v0.3.1, con cuadrícula libre, dock, galería de widgets y Bienestar rediseñado, comprobada en un Tecno LJ7. Consulta [qué funciona](docs/FEATURES.md) y
 [qué se probó realmente](docs/TEST_RESULTS.md).
 
 ## Las seis pantallas
@@ -49,7 +49,7 @@ launcher. Tus apps no se modifican en ningún caso.
 
 Instala la versión nueva encima de la anterior con `adb install -r`. Tus apps, carpetas, widgets y notas se conservan. Volver
 a una versión anterior exige desinstalar, lo que borra los datos. Por eso `dist/` conserva cada APK y Git cada versión con una
-etiqueta (`v0.2.0`, `v0.3.0`).
+etiqueta (`v0.2.0`, `v0.3.0`, `v0.3.1`).
 
 ## Versión release firmada
 

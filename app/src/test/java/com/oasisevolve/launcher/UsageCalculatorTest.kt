@@ -62,17 +62,76 @@ class UsageCalculatorTest {
     }
 
     @Test
-    fun `un hueco largo cuenta como otra apertura`() {
+    fun `volver desde otra app o desde el launcher cuenta como otra apertura`() {
         val s = computeUsage(
             sequenceOf(
                 ev(ACTIVITY_RESUMED, 100),
                 ev(ACTIVITY_PAUSED, 200),
+                ev(ACTIVITY_RESUMED, 210, pkg = "launcher"),
+                ev(ACTIVITY_PAUSED, 300, pkg = "launcher"),
+                ev(ACTIVITY_RESUMED, 310),
+                ev(ACTIVITY_PAUSED, 400),
+            ),
+            0, 10_000,
+            setOf("launcher"),
+        )
+        assertEquals(2, s.perApp.getValue("app").opens)
+    }
+
+    @Test
+    fun `desbloquear el telefono en la misma app no cuenta como apertura`() {
+        val s = computeUsage(
+            sequenceOf(
+                ev(ACTIVITY_RESUMED, 100),
+                ev(ACTIVITY_PAUSED, 200),
+                ev(SCREEN_NON_INTERACTIVE, 210, pkg = null, cls = null),
                 ev(ACTIVITY_RESUMED, 5000),
                 ev(ACTIVITY_PAUSED, 5100),
             ),
             0, 10_000,
         )
-        assertEquals(2, s.perApp.getValue("app").opens)
+        assertEquals(1, s.perApp.getValue("app").opens)
+        assertEquals(200, s.perApp.getValue("app").foregroundMs)
+    }
+
+    @Test
+    fun `una pausa suelta no inventa tiempo si Android no tiene datos de toda la ventana`() {
+        // Caso real: 550 h en 30 días porque los datos solo llegaban a 10 días atrás.
+        val windowStart = 0L
+        val dataStart = 20 * DAY_MS
+        val s = computeWindows(
+            sequenceOf(
+                ev(ACTIVITY_PAUSED, dataStart + 1_000),
+                ev(ACTIVITY_RESUMED, dataStart + 2_000),
+                ev(ACTIVITY_PAUSED, dataStart + 3_000),
+            ),
+            listOf(windowStart to 30 * DAY_MS),
+        ).single()
+        assertEquals(1_000, s.perApp.getValue("app").foregroundMs)
+    }
+
+    @Test
+    fun `una app abierta antes de la ventana solo cuenta su parte dentro`() {
+        val s = computeWindows(
+            sequenceOf(ev(ACTIVITY_RESUMED, 100), ev(ACTIVITY_PAUSED, 800)),
+            listOf(500L to 1000L),
+        ).single()
+        assertEquals(300, s.perApp.getValue("app").foregroundMs)
+        // Se abrió antes: no es una apertura de esta ventana.
+        assertEquals(0, s.perApp.getValue("app").opens)
+    }
+
+    @Test
+    fun `una noche con la pantalla apagada no cuenta aunque cruce el inicio de la ventana`() {
+        val s = computeWindows(
+            sequenceOf(
+                ev(ACTIVITY_RESUMED, 100),
+                ev(SCREEN_NON_INTERACTIVE, 200, pkg = null, cls = null),
+                ev(ACTIVITY_PAUSED, 900),
+            ),
+            listOf(500L to 1000L),
+        ).single()
+        assertEquals(0, s.totalMs)
     }
 
     @Test

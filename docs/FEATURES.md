@@ -1,6 +1,8 @@
-# Funciones implementadas y pendientes (v0.3.0)
+# Funciones implementadas y pendientes (v0.3.1)
 
-## Implementado y probado en emulador
+## Implementado y probado
+
+Probado en emulador. Lo principal se comprobó también en el Tecno LJ7: ver [resultados](TEST_RESULTS.md).
 
 **Pantalla principal**
 
@@ -15,6 +17,7 @@
 - Cuadrícula con guías, resaltado verde o rojo del destino y rechazo de solapes y posiciones imposibles.
 - Mover apps y widgets, cambiar tamaño de widgets y quitar elementos sin desinstalar.
 - Cambios guardados al instante; conservados tras reiniciar el proceso y al actualizar desde 0.2.
+- Al aplicar la composición, lo que no cabe en Inicio pasa a Apps útiles o a Widgets, y una app del dock no se repite.
 
 **Carpetas**
 
@@ -26,7 +29,7 @@
 
 - Galería visual con nombre, app, vista previa real publicada por la app, tamaño y opciones. Si una app no publica vista previa, se indica y se muestra su icono.
 - Widgets propios con datos reales: reloj, fotografías, tiempo de pantalla y búsqueda de Google.
-- Liberación del identificador al quitar un widget. Un widget que falle muestra un aviso y no tumba la pantalla.
+- Liberación del identificador al quitar un widget. Un widget que falle, o que no envíe contenido, muestra un aviso y no tumba la pantalla. La galería avisa de los widgets que pertenecen a otro launcher.
 
 **Bienestar**
 
@@ -49,17 +52,15 @@
 
 ## Implementado, sin prueba completa
 
-- **Teléfono real:** v0.3.0 no se había instalado en el Tecno LJ7 al cerrar este documento.
-- **Dock inicial con WhatsApp y Spotify:** esas apps no existen en el emulador; se comprobó la lógica con pruebas unitarias y el dock real con Teléfono y Cámara.
-- **Apps de la composición** como Notion, BNB, Brave, Obsidian o la carpeta IA: comprobadas con pruebas unitarias, no en interfaz.
+- **Teléfono real:** gestos inyectados por `adb`, sin tu uso diario. Elegir fotos y añadir un widget de otra app no se probaron allí.
 - **Animación al abrir apps:** se usa la API oficial, pero HiOS puede sustituirla por la suya.
-- **Comparación con periodos anteriores:** lógica con pruebas unitarias, sin historial real en el emulador.
+- **Comparación con periodos anteriores:** lógica con pruebas unitarias. En tu teléfono aún no se muestra porque Android solo tiene 10 días de datos.
 - **Immersive Mode en release:** comprobado por el sistema en depuración; en release la consulta no devolvió datos, aunque el código es el mismo.
 - **Cristal esmerilado (experimental):** sin desenfoque visible en el emulador.
 
 ## Lo que aún no cumple tu petición
 
-- **Clima en el reloj: no implementado.** Requiere Internet y romper la garantía de cero red. Alternativa sin cambiar nada: añadir desde la galería el widget de clima de una app instalada, si tu teléfono lo ofrece.
+- **Clima en el reloj: no implementado.** Requiere Internet y romper la garantía de cero red. Alternativa sin cambiar nada: añadir desde la galería el widget de clima de una app instalada, si tu teléfono lo ofrece. El widget de reloj y clima de HiOS no sirve: quedó en blanco en este launcher.
 - **Dos apps de tu referencia:** el icono de la estrella y el del libro no se pudieron identificar. Sus huecos se ocupan con otras apps o quedan libres; colócalas tú.
 - **Focus Mode, Notification Filter y Gestures:** aparecen en Ajustes como «Disponible en una próxima versión». No se fingen.
 - **Las secciones del menú** usan los nombres que pediste, más «Bienestar» para semana y semestre, y un acceso al sistema solo cuando falta un permiso.

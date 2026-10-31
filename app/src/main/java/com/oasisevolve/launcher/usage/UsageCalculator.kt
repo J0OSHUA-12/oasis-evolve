@@ -29,9 +29,6 @@ data class UsageSummary(
     val totalMs: Long get() = perApp.values.sumOf { it.foregroundMs }
 }
 
-/** Dos reanudaciones de la misma app separadas por menos que esto cuentan como una sola apertura. */
-private const val SAME_OPEN_GAP_MS = 1_000L
-
 private class OpenPackage(var since: Long, val activities: MutableSet<String> = mutableSetOf())
 
 /**
@@ -39,17 +36,25 @@ private class OpenPackage(var since: Long, val activities: MutableSet<String> = 
  *
  * Un paquete cuenta desde que tiene alguna actividad reanudada hasta que ya no tiene ninguna.
  * Apagar la pantalla, bloquearla o apagar el teléfono cierra todas las sesiones.
+ *
+ * Una apertura es volver a una app desde otra, como en el contador del propio Android: desbloquear
+ * el teléfono o saltar entre pantallas de la misma app no cuenta.
+ *
+ * Con [assumeOpenAtStart], una pausa sin reanudación previa se cuenta desde el inicio de la ventana.
+ * Solo es válido si los eventos empiezan justo en la ventana. Si también se le dan los anteriores,
+ * el estado ya se conoce y esa suposición inventaría tiempo.
  */
 class UsageAccumulator(
     val windowStart: Long,
     val windowEnd: Long,
     private val excludedPackages: Set<String> = emptySet(),
+    private val assumeOpenAtStart: Boolean = true,
 ) {
     private val open = HashMap<String, OpenPackage>()
     private val seen = HashSet<String>()
     private val totals = HashMap<String, Long>()
     private val opens = HashMap<String, Int>()
-    private val lastClosedAt = HashMap<String, Long>()
+    private var lastBackgrounded: String? = null
     private var firstEventAt: Long? = null
     private var deviceWentInactive = false
 
@@ -60,15 +65,13 @@ class UsageAccumulator(
     }
 
     private fun closeAll(at: Long) {
-        for ((pkg, session) in open) {
-            add(pkg, session.since, at)
-            lastClosedAt[pkg] = at
-        }
+        for ((pkg, session) in open) add(pkg, session.since, at)
         open.clear()
     }
 
     fun accept(event: RawEvent) {
-        if (firstEventAt == null) firstEventAt = event.timestamp
+        val insideWindow = event.timestamp >= windowStart
+        if (firstEventAt == null && insideWindow) firstEventAt = event.timestamp
         when (event.type) {
             EventType.ACTIVITY_RESUMED -> {
                 val pkg = event.packageName ?: return
@@ -76,10 +79,7 @@ class UsageAccumulator(
                 seen += pkg
                 val session = open[pkg]
                 if (session == null) {
-                    val closedAt = lastClosedAt[pkg]
-                    if (closedAt == null || event.timestamp - closedAt > SAME_OPEN_GAP_MS) {
-                        opens[pkg] = (opens[pkg] ?: 0) + 1
-                    }
+                    if (insideWindow && pkg != lastBackgrounded) opens[pkg] = (opens[pkg] ?: 0) + 1
                     open[pkg] = OpenPackage(event.timestamp).also { it.activities += event.className.orEmpty() }
                 } else {
                     session.activities += event.className.orEmpty()
@@ -88,21 +88,20 @@ class UsageAccumulator(
 
             EventType.ACTIVITY_PAUSED, EventType.ACTIVITY_STOPPED -> {
                 val pkg = event.packageName ?: return
+                if (event.type == EventType.ACTIVITY_PAUSED) lastBackgrounded = pkg
                 if (pkg in excludedPackages) return
                 val session = open[pkg]
                 if (session != null) {
                     session.activities -= event.className.orEmpty()
                     if (session.activities.isEmpty()) {
                         add(pkg, session.since, event.timestamp)
-                        lastClosedAt[pkg] = event.timestamp
                         open.remove(pkg)
                     }
                 } else if (
-                    event.type == EventType.ACTIVITY_PAUSED && pkg !in seen && !deviceWentInactive
+                    assumeOpenAtStart && event.type == EventType.ACTIVITY_PAUSED && pkg !in seen && !deviceWentInactive
                 ) {
                     // La app ya estaba abierta cuando empezó la ventana.
                     add(pkg, windowStart, event.timestamp)
-                    lastClosedAt[pkg] = event.timestamp
                 }
                 seen += pkg
             }
@@ -134,16 +133,22 @@ fun computeUsage(
     return accumulator.finish()
 }
 
-/** Una sola pasada por los eventos para todas las ventanas. Cada evento va solo a las ventanas que lo contienen. */
+/**
+ * Una sola pasada por los eventos para todas las ventanas. Cada ventana recibe también los eventos
+ * anteriores a ella, para saber qué estaba abierto al empezar sin tener que suponerlo. Lo que ocurrió
+ * antes de los datos que conserva Android queda sin contar: no se puede saber.
+ */
 fun computeWindows(
     events: Sequence<RawEvent>,
     windows: List<Pair<Long, Long>>,
     excludedPackages: Set<String> = emptySet(),
 ): List<UsageSummary> {
-    val accumulators = windows.map { (start, end) -> UsageAccumulator(start, end, excludedPackages) }
+    val accumulators = windows.map { (start, end) ->
+        UsageAccumulator(start, end, excludedPackages, assumeOpenAtStart = false)
+    }
     events.forEach { event ->
         accumulators.forEach { window ->
-            if (event.timestamp in window.windowStart..window.windowEnd) window.accept(event)
+            if (event.timestamp <= window.windowEnd) window.accept(event)
         }
     }
     return accumulators.map { it.finish() }

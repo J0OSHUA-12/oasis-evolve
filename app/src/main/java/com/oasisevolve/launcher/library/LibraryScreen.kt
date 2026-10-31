@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -222,7 +223,10 @@ private fun SettingsCard(onSettings: () -> Unit) {
             .clickable(onClick = onSettings)
             .semantics { contentDescription = "Ajustes de Oasis Evolve" },
     ) {
-        Icon(Icons.Outlined.Settings, contentDescription = null, modifier = Modifier.size(44.dp))
+        // Misma altura que las dos filas de iconos de una categoría.
+        Box(Modifier.height(96.dp)) {
+            Icon(Icons.Outlined.Settings, contentDescription = null, modifier = Modifier.size(44.dp))
+        }
         Text("Ajustes", style = MaterialTheme.typography.labelLarge)
     }
 }

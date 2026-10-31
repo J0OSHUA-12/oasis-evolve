@@ -8,6 +8,8 @@ import com.oasisevolve.launcher.storage.HomeItem
 import com.oasisevolve.launcher.storage.HomeItemKind
 import com.oasisevolve.launcher.storage.IconShape
 import com.oasisevolve.launcher.storage.InstalledApp
+import com.oasisevolve.launcher.storage.IntentHandler
+import com.oasisevolve.launcher.storage.appForHandlers
 import com.oasisevolve.launcher.storage.LauncherSettings
 import com.oasisevolve.launcher.storage.ThemeMode
 import com.oasisevolve.launcher.storage.WidgetPhoto
@@ -237,7 +239,7 @@ class OrganizerTest {
 
     @Test
     fun `la composicion inicial sigue la referencia y su dock`() {
-        val s = LauncherSettings().withDefaultComposition(phoneApps, "com.transsion.dialer", "com.transsion.camera")
+        val s = LauncherSettings().withDefaultComposition(phoneApps, "dial", "cam")
         assertEquals(listOf("dial", "wa", "sp", "cam"), s.dockApps)
         assertEquals(HomeItemKind.CLOCK, itemAt(s.homeLayout, 0, 0)?.kind)
         assertEquals(HomeItemKind.PHOTO, itemAt(s.homeLayout, 3, 1)?.kind)
@@ -262,12 +264,65 @@ class OrganizerTest {
     }
 
     @Test
+    fun `en un paquete con Telefono y Contactos se elige la actividad que marca`() {
+        // Caso real en HiOS: los dos iconos son de com.sh.smart.caller y Contactos aparece primero.
+        val apps = listOf(
+            InstalledApp("contacts", "Contacts", "com.sh.smart.caller", "com.android.dialer.ContactMainActivity"),
+            InstalledApp("phone", "Phone", "com.sh.smart.caller", "com.android.dialer.main.impl.MainActivity"),
+        )
+        val handlers = listOf(
+            IntentHandler("com.sh.smart.caller", "com.android.dialer.main.impl.MainActivity"),
+            IntentHandler("us.zoom.videomeetings", "com.zipow.videobox.JoinByURLActivity"),
+        )
+        assertEquals("phone", appForHandlers(apps, handlers)?.key)
+    }
+
+    @Test
+    fun `si la actividad exacta no se puede abrir se usa otra del mismo paquete`() {
+        val apps = listOf(InstalledApp("cam", "Camera", "com.transsion.camera", "com.android.camera.CameraLauncher"))
+        val handlers = listOf(IntentHandler("com.transsion.camera", "com.android.camera.Camera"))
+        assertEquals("cam", appForHandlers(apps, handlers)?.key)
+        assertNull(appForHandlers(apps, listOf(IntentHandler("otra", "X"))))
+    }
+
+    @Test
+    fun `una app que ya esta en el dock no se repite en la cuadricula`() {
+        val before = home(appItem("wa", 0, 0))
+        val s = before.withDefaultComposition(phoneApps, "dial", "cam")
+        assertTrue(s.homeLayout.none { it.ref == "wa" })
+        assertTrue("wa" in s.dockApps)
+    }
+
+    @Test
+    fun `lo que no cabe en la pantalla va a su sitio y no a una fila oculta`() {
+        val before = home(widgetItem(9, 0, 0, 4, 2), widgetItem(10, 0, 2, 4, 2), appItem("tt", 0, 4))
+        val full = (0..6).flatMap { row -> (0..3).map { col -> appItem("x$col$row", col, row) } }
+        val s = before.copy(homeLayout = before.homeLayout + full).withDefaultComposition(phoneApps, null, null)
+        assertTrue(s.homeLayout.all { it.row + it.h <= s.gridRows })
+        assertEquals(listOf(9, 10), s.widgetIds)
+        // Lo que sobra sigue accesible en Apps útiles.
+        val total = s.homeLayout.count { it.kind == HomeItemKind.APP } + s.usefulLayout.size
+        assertTrue(total >= full.size + 1)
+    }
+
+    @Test
+    fun `restaurar la composicion dos veces da el mismo resultado`() {
+        val once = LauncherSettings().withDefaultComposition(phoneApps, "dial", "cam")
+        val twice = once.withDefaultComposition(phoneApps, "dial", "cam")
+        assertEquals(once.homeLayout.toSet(), twice.homeLayout.toSet())
+        assertEquals(once.folders, twice.folders)
+        assertEquals(once.usefulLayout, twice.usefulLayout)
+        assertEquals(HomeItemKind.FOLDER, itemAt(twice.homeLayout, 1, 5)?.kind)
+    }
+
+    @Test
     fun `la composicion conserva lo que ya estaba colocado sin solapar`() {
         val before = home(appItem("tt", 0, 0), appItem("dr", 1, 0), widgetItem(9, 0, 1, 4, 2))
         val s = before.withDefaultComposition(phoneApps, null, null)
         assertTrue(s.homeLayout.any { it.ref == "tt" })
         assertEquals(1, s.homeLayout.count { it.ref == "dr" })
-        assertNotNull(s.homeLayout.firstOrNull { it.kind == HomeItemKind.WIDGET })
+        // Un widget de 4 × 2 ya no cabe en la composición: pasa al Widget Center.
+        assertEquals(listOf(9), s.widgetIds)
         val cells = s.homeLayout.flatMap { item ->
             (item.col until item.col + item.w).flatMap { c -> (item.row until item.row + item.h).map { r -> c to r } }
         }

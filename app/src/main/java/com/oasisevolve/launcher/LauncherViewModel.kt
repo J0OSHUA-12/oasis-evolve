@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.net.Uri
 import android.provider.MediaStore
+import android.telecom.TelecomManager
 import android.view.View
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,10 +19,12 @@ import com.oasisevolve.launcher.storage.GridTarget
 import com.oasisevolve.launcher.storage.HomeItem
 import com.oasisevolve.launcher.storage.HomeItemKind
 import com.oasisevolve.launcher.storage.InstalledApp
+import com.oasisevolve.launcher.storage.IntentHandler
 import com.oasisevolve.launcher.storage.LauncherSettings
 import com.oasisevolve.launcher.storage.Note
 import com.oasisevolve.launcher.storage.addGridItem
 import com.oasisevolve.launcher.storage.addToFolder
+import com.oasisevolve.launcher.storage.appForHandlers
 import com.oasisevolve.launcher.storage.appItem
 import com.oasisevolve.launcher.storage.containsApp
 import com.oasisevolve.launcher.storage.createFolder
@@ -146,23 +149,23 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun applyDefaultComposition(apps: List<AppEntry>) {
-        val installed = apps.map { InstalledApp(it.key, it.label, it.packageName) }
-        val dialer = defaultPackageFor(Intent(Intent.ACTION_DIAL), apps)
-        val camera = defaultPackageFor(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA), apps)
-        updateSettings { it.withDefaultComposition(installed, dialer, camera) }
+        val installed = apps.map { InstalledApp(it.key, it.label, it.packageName, it.component.className) }
+        val defaultDialer = getApplication<Application>().getSystemService(TelecomManager::class.java)?.defaultDialerPackage
+        val dialer = handlersFor(Intent(Intent.ACTION_DIAL)).sortedByDescending { it.packageName == defaultDialer }
+        val camera = handlersFor(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+        updateSettings {
+            it.withDefaultComposition(installed, appForHandlers(installed, dialer)?.key, appForHandlers(installed, camera)?.key)
+        }
     }
 
     fun restoreDefaultComposition() {
         applyDefaultComposition(state.value.allApps)
     }
 
-    private fun defaultPackageFor(intent: Intent, apps: List<AppEntry>): String? {
-        val pm = getApplication<Application>().packageManager
-        val launchable = apps.map { it.packageName }.toSet()
-        val handlers = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            .map { it.activityInfo.packageName }
-        return handlers.firstOrNull { it in launchable }
-    }
+    private fun handlersFor(intent: Intent): List<IntentHandler> =
+        getApplication<Application>().packageManager
+            .queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            .map { IntentHandler(it.activityInfo.packageName, it.activityInfo.name) }
 
     suspend fun icon(app: AppEntry) = appRepo.icon(app)
 

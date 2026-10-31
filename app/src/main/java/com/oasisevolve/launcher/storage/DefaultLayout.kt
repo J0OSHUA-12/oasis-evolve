@@ -3,7 +3,27 @@ package com.oasisevolve.launcher.storage
 import com.oasisevolve.launcher.drawer.normalizeForSearch
 
 /** Lo mínimo de una app instalada para decidir la composición inicial. */
-data class InstalledApp(val key: String, val label: String, val packageName: String)
+data class InstalledApp(
+    val key: String,
+    val label: String,
+    val packageName: String,
+    val activityName: String = "",
+)
+
+/** Actividad del sistema que atiende una acción, como marcar o abrir la cámara. */
+data class IntentHandler(val packageName: String, val activityName: String)
+
+/**
+ * Icono abrible que corresponde a quien atiende una acción. Un paquete puede tener varios: en HiOS,
+ * Teléfono y Contactos son el mismo. Por eso se busca primero la actividad exacta.
+ */
+fun appForHandlers(apps: List<InstalledApp>, handlers: List<IntentHandler>): InstalledApp? {
+    handlers.forEach { handler ->
+        apps.firstOrNull { it.packageName == handler.packageName && it.activityName == handler.activityName }
+            ?.let { return it }
+    }
+    return handlers.firstNotNullOfOrNull { handler -> apps.firstOrNull { it.packageName == handler.packageName } }
+}
 
 const val WHATSAPP_PACKAGE = "com.whatsapp"
 const val SPOTIFY_PACKAGE = "com.spotify.music"
@@ -35,12 +55,13 @@ private fun List<InstalledApp>.findBy(packages: List<String>, labels: List<Strin
 /**
  * Composición de referencia: reloj y fotos arriba, tiempo de pantalla y apps en medio, búsqueda y
  * más apps abajo, y dock con Teléfono, WhatsApp, Spotify y Cámara. Solo usa apps que existan: una
- * que falte deja su hueco libre. Lo que el usuario ya tenía colocado se conserva en los huecos restantes.
+ * que falte deja su hueco libre. Lo que el usuario ya tenía colocado se conserva: va a los huecos
+ * restantes y, si no cabe en la pantalla, a Apps útiles o al Widget Center. Inicio no se desplaza por ello.
  */
 fun LauncherSettings.withDefaultComposition(
     apps: List<InstalledApp>,
-    dialerPackage: String?,
-    cameraPackage: String?,
+    dialerKey: String?,
+    cameraKey: String?,
 ): LauncherSettings {
     val previous = homeLayout
     val items = mutableListOf(
@@ -61,27 +82,40 @@ fun LauncherSettings.withDefaultComposition(
         .filter { it.key !in alreadyInFolders }
         .map { it.key }
     val newFolders = folders.toMutableList()
-    if (aiApps.size >= 2 && newFolders.none { it.id == AI_FOLDER_ID }) {
-        newFolders += AppFolder(AI_FOLDER_ID, "IA", aiApps)
-        items += folderItem(AI_FOLDER_ID, AI_FOLDER_CELL.first, AI_FOLDER_CELL.second)
-    }
+    val hasAiFolder = newFolders.any { it.id == AI_FOLDER_ID }
+    if (!hasAiFolder && aiApps.size >= 2) newFolders += AppFolder(AI_FOLDER_ID, "IA", aiApps)
+    if (hasAiFolder || aiApps.size >= 2) items += folderItem(AI_FOLDER_ID, AI_FOLDER_CELL.first, AI_FOLDER_CELL.second)
 
-    // Nada de lo que ya estaba en la pantalla se pierde.
-    val placedApps = items.filter { it.kind == HomeItemKind.APP }.map { it.ref }.toSet() + aiApps
+    val dockKeys = listOfNotNull(
+        dialerKey,
+        apps.firstOrNull { it.packageName == WHATSAPP_PACKAGE }?.key,
+        apps.firstOrNull { it.packageName == SPOTIFY_PACKAGE }?.key,
+        cameraKey,
+    )
+    val dock = if (dockKeys.isNotEmpty()) dockKeys else dockApps
+
+    // Nada de lo que ya estaba en la pantalla se pierde. Una app que ya está en el dock no se repite.
+    val placedApps = items.filter { it.kind == HomeItemKind.APP }.map { it.ref }.toSet() + aiApps + dock
     val placedIds = items.map { it.id }.toSet()
     val kept = previous.filterNot { (it.kind == HomeItemKind.APP && it.ref in placedApps) || it.id in placedIds }
-    val merged = kept.fold(items.toList()) { acc, item ->
-        val (col, row) = firstFree(acc, item.w, item.h, gridColumns, gridRows)
-        acc + item.copy(col = col, row = row)
+    val placedOnHome = items.toMutableList()
+    var useful = usefulLayout.filterNot { it.id in placedIds }
+    val center = widgetIds.toMutableList()
+    kept.forEach { item ->
+        val (col, row) = firstFree(placedOnHome, item.w, item.h, gridColumns, gridRows)
+        when {
+            row + item.h <= gridRows -> placedOnHome += item.copy(col = col, row = row)
+            item.kind == HomeItemKind.WIDGET -> item.ref.toIntOrNull()?.let { center += it }
+            else -> useful = addItems(useful, gridColumns, gridRows, listOf { c, r -> item.copy(col = c, row = r) })
+        }
     }
 
-    val dockPackages = listOfNotNull(dialerPackage, WHATSAPP_PACKAGE, SPOTIFY_PACKAGE, cameraPackage)
-    val dock = dockPackages.mapNotNull { pkg -> apps.firstOrNull { it.packageName == pkg }?.key }
-
     return copy(
-        homeLayout = merged,
+        homeLayout = placedOnHome,
+        usefulLayout = useful,
+        widgetIds = center,
         folders = newFolders,
-        dockApps = if (dock.isNotEmpty()) dock else dockApps,
+        dockApps = dock,
         showLabels = false,
         // Las referencias son oscuras. Un tema elegido a mano se respeta.
         themeMode = if (themeMode == ThemeMode.SYSTEM) ThemeMode.DARK else themeMode,

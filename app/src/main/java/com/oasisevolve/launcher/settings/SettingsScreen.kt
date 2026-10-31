@@ -318,7 +318,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("¿Restaurar la distribución inicial?") },
-            text = { Text("La pantalla principal vuelve a la composición de referencia. Tus apps y widgets actuales se conservan en los huecos libres.") },
+            text = { Text("La pantalla principal vuelve a la composición de referencia. Tus apps y widgets actuales se conservan en los huecos libres. Lo que no quepa pasa a Apps útiles o a la pantalla Widgets.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.restoreDefaultComposition()

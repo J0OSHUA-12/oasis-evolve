@@ -169,7 +169,7 @@ private fun TotalCard(usage: UsageOverview) {
             Muted("Android solo tiene datos de ${total.coverageDays} de los últimos 7 días.")
         }
         if (usage.coverage30d in 1..29) {
-            Muted("Y de ${usage.coverage30d} de los últimos 30 días.")
+            Muted("Android solo tiene datos de ${usage.coverage30d} de los últimos 30 días.")
         }
         ComparisonText(total)
     }

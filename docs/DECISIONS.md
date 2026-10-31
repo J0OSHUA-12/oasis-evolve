@@ -36,6 +36,11 @@
 | 32 | 2026-10-31 | Una sola pasada por los eventos para todas las ventanas de uso | Mucho menos costoso que consultar Android una vez por ventana |
 | 33 | 2026-10-31 | `EvolveWidgetHostView` intercepta la pulsación larga | Sin ello, mantener pulsado un widget abría su app |
 | 34 | 2026-10-31 | Focus Mode, Notification Filter y Gestures visibles como pendientes | Pediste las secciones, pero son de una fase posterior: no se finge que funcionan |
+| 35 | 2026-10-31 | El dock busca la actividad exacta que atiende marcar o la cámara | En HiOS, Teléfono y Contactos son el mismo paquete |
+| 36 | 2026-10-31 | Una apertura es volver a una app desde otra, como en Android | Desbloquear el teléfono inflaba la cifra: 57 frente a 16 |
+| 37 | 2026-10-31 | Cada ventana de uso recibe también los eventos anteriores a ella | Así se sabe qué estaba abierto sin suponerlo; suponerlo inventó 20 días de uso |
+| 38 | 2026-10-31 | Lo que no cabe en la composición va a Widgets o Apps útiles | Una fila oculta hacía que Inicio se desplazara sin que se viera nada |
+| 39 | 2026-10-31 | Avisar de widgets sin contenido en lugar de ocultar los de otro launcher | Solo se comprobó en un widget de HiOS; otros podrían funcionar |
 
 ## Decisiones pendientes de tu aprobación
 

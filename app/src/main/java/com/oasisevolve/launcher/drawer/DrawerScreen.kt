@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +43,7 @@ import com.oasisevolve.launcher.LauncherState
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.ui.SearchField
+import com.oasisevolve.launcher.ui.onWallpaper
 import kotlinx.coroutines.launch
 
 /** Mínimo de letras para la búsqueda deliberada: buscar una app oculta debe requerir intención. */
@@ -51,10 +55,21 @@ private const val DELIBERATE_MIN_CHARS = 3
 fun DrawerScreen(
     state: LauncherState,
     viewModel: LauncherViewModel,
+    isCurrentPage: Boolean,
     onLongPress: (AppEntry) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     var deliberate by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+
+    // Una app oculta encontrada no debe seguir a la vista al volver a esta pantalla.
+    LaunchedEffect(isCurrentPage) {
+        if (!isCurrentPage) {
+            query = ""
+            deliberate = false
+            focusManager.clearFocus()
+        }
+    }
 
     val results = if (deliberate) {
         if (query.trim().length < DELIBERATE_MIN_CHARS) emptyList()
@@ -87,14 +102,13 @@ fun DrawerScreen(
                 deliberate = !deliberate
                 query = ""
             }) {
-                Text(if (deliberate) "Volver" else "Ocultas")
+                Text(if (deliberate) "Volver" else "Ocultas", style = MaterialTheme.typography.labelLarge.onWallpaper())
             }
         }
         if (deliberate) {
             Text(
                 "Escribe al menos $DELIBERATE_MIN_CHARS letras para buscar entre tus apps ocultas.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.bodySmall.onWallpaper(alpha = 0.85f),
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
@@ -106,6 +120,7 @@ fun DrawerScreen(
         ) {
             LazyColumn(
                 state = listState,
+                contentPadding = PaddingValues(bottom = 32.dp),
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
@@ -115,7 +130,7 @@ fun DrawerScreen(
                         text = if (app.isWorkProfile) "${app.label} (trabajo)" else app.label,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        style = MaterialTheme.typography.bodyLarge.onWallpaper(),
                         modifier = Modifier
                             .fillMaxWidth()
                             .combinedClickable(
@@ -165,7 +180,7 @@ private fun LetterRail(letters: List<Char>, onLetter: (Char) -> Unit) {
                 Text(
                     letter.toString(),
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.labelSmall.onWallpaper(alpha = 0.85f),
                 )
             }
         }

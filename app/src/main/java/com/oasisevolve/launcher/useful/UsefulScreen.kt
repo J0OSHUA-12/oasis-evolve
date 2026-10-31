@@ -25,6 +25,7 @@ import com.oasisevolve.launcher.LauncherState
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.ui.AppTile
+import com.oasisevolve.launcher.ui.onWallpaper
 
 @Composable
 fun UsefulScreen(
@@ -45,9 +46,8 @@ fun UsefulScreen(
         item(span = { GridItemSpan(maxLineSpan) }) {
             Text(
                 "Apps que me aportan valor",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMedium.onWallpaper(),
                 fontWeight = FontWeight.Light,
-                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
             )
         }
@@ -89,11 +89,10 @@ private fun LazyGridScope.section(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+            Text(title, style = MaterialTheme.typography.titleLarge.onWallpaper())
             Text(
                 "Editar",
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.onWallpaper(),
                 modifier = Modifier
                     .clickable(onClick = onEdit)
                     .padding(8.dp),
@@ -103,8 +102,7 @@ private fun LazyGridScope.section(
     item(span = { GridItemSpan(maxLineSpan) }) {
         Text(
             if (apps.isEmpty()) "$subtitle Toca Editar para añadirlas." else subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            style = MaterialTheme.typography.bodySmall.onWallpaper(alpha = 0.85f),
         )
     }
     items(apps, key = { "$title/${it.key}" }) { app ->

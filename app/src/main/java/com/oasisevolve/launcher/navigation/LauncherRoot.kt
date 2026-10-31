@@ -15,7 +15,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -42,6 +42,7 @@ import com.oasisevolve.launcher.library.LibraryScreen
 import com.oasisevolve.launcher.settings.SettingsScreen
 import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.ui.EvolveTheme
+import com.oasisevolve.launcher.ui.LocalWallpaperContent
 import com.oasisevolve.launcher.useful.UsefulScreen
 import com.oasisevolve.launcher.wellbeing.WellbeingScreen
 import com.oasisevolve.launcher.widgets.WidgetCenterScreen
@@ -94,13 +95,25 @@ fun LauncherRoot(
         if (pager.settledPage == WELLBEING) viewModel.refreshUsage()
     }
 
-    BackHandler(enabled = showSettings || pager.currentPage != HOME) {
-        if (showSettings) showSettings = false else goHome()
+    BackHandler(enabled = gate != null || showSettings || pager.currentPage != HOME) {
+        when {
+            gate != null -> viewModel.dismissGate()
+            showSettings -> showSettings = false
+            else -> goHome()
+        }
     }
 
     EvolveTheme(settings.themeMode) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             Box(Modifier.fillMaxSize()) {
+                // Atenúa un poco el fondo para que el texto claro se lea también sobre zonas claras.
+                if (LocalWallpaperContent.current == Color.White) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.22f)),
+                    )
+                }
                 HorizontalPager(
                     state = pager,
                     beyondViewportPageCount = 1,
@@ -135,8 +148,18 @@ fun LauncherRoot(
                                 onLongPress = { actionsFor = it },
                                 onEdit = { pickerFor = it },
                             )
-                            DRAWER -> DrawerScreen(state, viewModel, onLongPress = { actionsFor = it })
-                            LIBRARY -> LibraryScreen(state, viewModel, onLongPress = { actionsFor = it })
+                            DRAWER -> DrawerScreen(
+                                state = state,
+                                viewModel = viewModel,
+                                isCurrentPage = pager.currentPage == DRAWER,
+                                onLongPress = { actionsFor = it },
+                            )
+                            LIBRARY -> LibraryScreen(
+                                state = state,
+                                viewModel = viewModel,
+                                isCurrentPage = pager.currentPage == LIBRARY,
+                                onLongPress = { actionsFor = it },
+                            )
                         }
                     }
                 }
@@ -193,7 +216,7 @@ private fun PagerState.pageOffset(page: Int): Float = (currentPage - page) + cur
 private fun PageIndicator(current: Int, count: Int, modifier: Modifier = Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         repeat(count) { index ->
-            val color = MaterialTheme.colorScheme.onBackground.copy(alpha = if (index == current) 0.95f else 0.3f)
+            val color = LocalWallpaperContent.current.copy(alpha = if (index == current) 0.95f else 0.35f)
             Box(
                 Modifier
                     .size(if (index == HOME) 7.dp else 5.dp)

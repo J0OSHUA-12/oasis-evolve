@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.oasisevolve.launcher.GateRequest
@@ -38,8 +39,11 @@ fun InterruptionScreen(
     onContinue: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
     var remaining by remember(request.app.key) { mutableIntStateOf(waitSeconds) }
     LaunchedEffect(request.app.key) {
+        // Sin esto, el teclado de la búsqueda absorbe la primera pulsación de Atrás.
+        focusManager.clearFocus()
         while (remaining > 0) {
             delay(1_000)
             remaining -= 1
@@ -84,7 +88,8 @@ private fun StatsCard(stats: AppStats) {
         StatLine("Últimas 24 horas", formatDuration(stats.last24hMs))
         StatLine("Últimos 7 días", formatDuration(stats.last7dMs))
         if (stats.coverageDays > 0) {
-            StatLine("Promedio diario (${stats.coverageDays} días con datos)", formatDuration(stats.averageDailyMs))
+            val days = if (stats.coverageDays == 1) "1 día" else "${stats.coverageDays} días"
+            StatLine("Promedio diario ($days con datos)", formatDuration(stats.averageDailyMs))
         }
         val yearDays = projectTime(stats.averageDailyMs).yearInFullDays.roundToInt()
         if (yearDays >= 1) {

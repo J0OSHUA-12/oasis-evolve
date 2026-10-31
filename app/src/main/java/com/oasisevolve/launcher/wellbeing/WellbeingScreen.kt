@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.storage.Note
 import com.oasisevolve.launcher.ui.GlassCard
+import com.oasisevolve.launcher.ui.onWallpaper
 import com.oasisevolve.launcher.usage.UsageReport
 import com.oasisevolve.launcher.usage.UsageWindow
 import com.oasisevolve.launcher.usage.formatDuration
@@ -66,9 +67,8 @@ fun WellbeingScreen(viewModel: LauncherViewModel) {
         item {
             Text(
                 "Bienestar",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMedium.onWallpaper(),
                 fontWeight = FontWeight.Light,
-                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 24.dp),
             )
         }

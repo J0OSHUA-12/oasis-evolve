@@ -1,5 +1,11 @@
 package com.oasisevolve.launcher.ui
 
+import android.app.WallpaperColors
+import android.app.WallpaperManager
+import android.content.Context
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -20,13 +26,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -64,7 +80,48 @@ fun EvolveTheme(mode: ThemeMode, content: @Composable () -> Unit) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    MaterialTheme(colorScheme = if (dark) DarkColors else LightColors, content = content)
+    CompositionLocalProvider(LocalWallpaperContent provides rememberWallpaperContentColor()) {
+        MaterialTheme(colorScheme = if (dark) DarkColors else LightColors, content = content)
+    }
+}
+
+/**
+ * Color del contenido dibujado directamente sobre el fondo. Depende del fondo y no del tema:
+ * un tema claro sobre un fondo oscuro haría ilegible el texto.
+ */
+val LocalWallpaperContent = staticCompositionLocalOf { Color.White }
+
+@Composable
+private fun rememberWallpaperContentColor(): Color {
+    val context = LocalContext.current
+    var color by remember { mutableStateOf(wallpaperContentColor(context)) }
+    DisposableEffect(context) {
+        val manager = WallpaperManager.getInstance(context)
+        val listener = WallpaperManager.OnColorsChangedListener { _, _ ->
+            color = wallpaperContentColor(context)
+        }
+        manager.addOnColorsChangedListener(listener, Handler(Looper.getMainLooper()))
+        onDispose { manager.removeOnColorsChangedListener(listener) }
+    }
+    return color
+}
+
+private fun wallpaperContentColor(context: Context): Color {
+    if (Build.VERSION.SDK_INT < 31) return Color.White
+    val colors = WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
+    val supportsDarkText = colors != null && colors.colorHints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT != 0
+    return if (supportsDarkText) Color(0xFF10201B) else Color.White
+}
+
+/** Estilo para texto sobre el fondo real. La sombra mantiene el contraste en fondos mixtos. */
+@Composable
+fun TextStyle.onWallpaper(alpha: Float = 1f): TextStyle {
+    val content = LocalWallpaperContent.current
+    val shadow = if (content == Color.White) Color.Black.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.5f)
+    return copy(
+        color = content.copy(alpha = alpha),
+        shadow = Shadow(color = shadow, offset = Offset(0f, 1.5f), blurRadius = 6f),
+    )
 }
 
 /** Tarjeta translúcida que deja ver el fondo real del dispositivo. */
@@ -76,7 +133,7 @@ fun GlassCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Column(
@@ -133,8 +190,7 @@ fun AppTile(
         if (showLabel || !showIcon) {
             Text(
                 text = app.label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.labelSmall.onWallpaper(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,

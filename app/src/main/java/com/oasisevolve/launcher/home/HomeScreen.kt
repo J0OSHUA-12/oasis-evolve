@@ -42,6 +42,8 @@ import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.ui.AppTile
 import com.oasisevolve.launcher.ui.GlassCard
+import com.oasisevolve.launcher.ui.LocalWallpaperContent
+import com.oasisevolve.launcher.ui.onWallpaper
 import kotlinx.coroutines.delay
 import java.util.Date
 import java.util.Locale
@@ -78,7 +80,7 @@ fun HomeScreen(
                 Icon(
                     Icons.Outlined.Settings,
                     contentDescription = "Ajustes",
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    tint = LocalWallpaperContent.current.copy(alpha = 0.8f),
                 )
             }
         }
@@ -140,14 +142,14 @@ private fun Clock() {
         Text(
             time,
             fontSize = 64.sp,
+            lineHeight = 72.sp,
             fontWeight = FontWeight.Light,
-            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.displayLarge.onWallpaper(),
         )
         Text(
             date,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium.onWallpaper(alpha = 0.9f),
             fontWeight = FontWeight.Normal,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
         )
     }
 }

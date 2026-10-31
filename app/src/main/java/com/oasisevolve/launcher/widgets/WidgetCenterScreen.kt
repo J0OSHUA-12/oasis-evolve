@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +35,7 @@ import com.oasisevolve.launcher.EvolveApp
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.storage.LauncherSettings
 import com.oasisevolve.launcher.ui.GlassCard
+import com.oasisevolve.launcher.ui.onWallpaper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,9 +59,8 @@ fun WidgetCenterScreen(
         item {
             Text(
                 "Widgets",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMedium.onWallpaper(),
                 fontWeight = FontWeight.Light,
-                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 24.dp),
             )
         }
@@ -92,7 +93,10 @@ fun WidgetCenterScreen(
 
     if (picking) {
         val providers = remember { controller.providers() }
-        ModalBottomSheet(onDismissRequest = { picking = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { picking = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
             Column(Modifier.padding(horizontal = 18.dp).navigationBarsPadding()) {
                 Text("Elige un widget", style = MaterialTheme.typography.titleLarge)
                 if (providers.isEmpty()) {

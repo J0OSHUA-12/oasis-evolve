@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -20,12 +21,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,15 +40,26 @@ import com.oasisevolve.launcher.ui.AppIcon
 import com.oasisevolve.launcher.ui.AppTile
 import com.oasisevolve.launcher.ui.GlassCard
 import com.oasisevolve.launcher.ui.SearchField
+import com.oasisevolve.launcher.ui.onWallpaper
 
 @Composable
 fun LibraryScreen(
     state: LauncherState,
     viewModel: LauncherViewModel,
+    isCurrentPage: Boolean,
     onLongPress: (AppEntry) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     var openCategory by remember { mutableStateOf<String?>(null) }
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(isCurrentPage) {
+        if (!isCurrentPage) {
+            query = ""
+            openCategory = null
+            focusManager.clearFocus()
+        }
+    }
 
     val apps = state.allApps.filter { state.level(it).inVisualScreens }
     val groups = remember(apps, state.settings.categoryOverrides) {
@@ -76,11 +90,12 @@ fun LibraryScreen(
                 ) {
                     Text(
                         opened.first,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.headlineSmall.onWallpaper(),
                         fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onBackground,
                     )
-                    TextButton(onClick = { openCategory = null }) { Text("Cerrar") }
+                    TextButton(onClick = { openCategory = null }) {
+                        Text("Cerrar", style = MaterialTheme.typography.labelLarge.onWallpaper())
+                    }
                 }
                 AppGrid(opened.second, state, viewModel, onLongPress)
             }
@@ -106,11 +121,12 @@ private fun CategoryCard(
     onOpen: () -> Unit,
 ) {
     GlassCard(Modifier.clickable(onClick = onOpen)) {
-        val preview = apps.take(4)
+        val rows = apps.take(4).chunked(2)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            preview.chunked(2).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { AppIcon(it, viewModel, 44.dp) }
+            // Siempre dos filas, para que todas las tarjetas tengan la misma altura.
+            repeat(2) { index ->
+                Row(Modifier.height(44.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rows.getOrNull(index)?.forEach { AppIcon(it, viewModel, 44.dp) }
                 }
             }
         }

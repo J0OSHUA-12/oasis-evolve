@@ -17,7 +17,7 @@ val DEFAULT_CATEGORIES = listOf(
 
 private val PACKAGE_HINTS = listOf(
     "Redes sociales" to listOf("instagram", "facebook.katana", "tiktok", "musically", "twitter", "reddit", "snapchat", "threads", "pinterest", "linkedin"),
-    "Comunicación" to listOf("whatsapp", "telegram", "signal", "gmail", "outlook", "discord", "messaging", "dialer", "contacts", "teams", "zoom"),
+    "Comunicación" to listOf("whatsapp", "telegram", "signal", "gmail", "google.android.gm", "outlook", "discord", "messaging", "dialer", "contacts", "teams", "zoom"),
     "Entretenimiento" to listOf("youtube", "netflix", "spotify", "twitch", "primevideo", "disney", "music", "podcast"),
     "Educación" to listOf("classroom", "duolingo", "moodle", "coursera", "khan", "udemy", "anki", "edu"),
     "Finanzas" to listOf("bank", "banco", "wallet", "paypal", "binance", "finance", "yape", "tigo"),

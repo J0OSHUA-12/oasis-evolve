@@ -3,7 +3,7 @@
 Launcher Android personal, nativo y local, inspirado en la filosofía minimalista de Oasis. Es una aplicación
 independiente, con su propio paquete, código y firma. No contiene código ni recursos de Oasis.
 
-**Estado:** v0.3.1, con cuadrícula libre, dock, galería de widgets y Bienestar rediseñado, comprobada en un Tecno LJ7. Consulta [qué funciona](docs/FEATURES.md) y
+**Estado:** v0.4.1. Añade el bloqueo fuera del launcher, temporizadores, el filtro de notificaciones, copias de seguridad y una versión optimizada. La 0.4.0 se comprobó en un Tecno LJ7; la 0.4.1 aún no está instalada en él. Consulta [qué funciona](docs/FEATURES.md) y
 [qué se probó realmente](docs/TEST_RESULTS.md).
 
 ## Las seis pantallas
@@ -45,11 +45,29 @@ El APK queda en `app\build\outputs\apk\debug\app-debug.apk`.
 **Volver atrás:** en Android, ve a Ajustes > Aplicaciones > Aplicaciones predeterminadas > Pantalla de inicio y elige otro
 launcher. Tus apps no se modifican en ningún caso.
 
+## Versión optimizada para el uso diario
+
+La versión de depuración es bastante más lenta. La versión `personal` usa el mismo identificador y la misma firma, así que se instala encima conservando todo:
+
+```powershell
+.\gradlew.bat :app:assemblePersonal
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r app\build\outputs\apk\personal\app-personal.apk
+```
+
+Con ella ya no se pueden copiar los datos por USB. Usa **Ajustes > Copia de seguridad > Exportar copia**.
+
+## Permisos opcionales
+
+- **Bloqueo fuera del launcher:** Ajustes de Android > Accesibilidad > Oasis Evolve: bloqueo de apps. Solo recibe qué app se abre, y solo de las vigiladas.
+- **Filtro de notificaciones:** Ajustes > Notification Filter > Conceder acceso a notificaciones.
+
+No fuerces la detención del launcher: Android desconectaría el bloqueo y tendrías que apagarlo y encenderlo otra vez.
+
 ## Actualizar sin perder datos
 
 Instala la versión nueva encima de la anterior con `adb install -r`. Tus apps, carpetas, widgets y notas se conservan. Volver
 a una versión anterior exige desinstalar, lo que borra los datos. Por eso `dist/` conserva cada APK y Git cada versión con una
-etiqueta (`v0.2.0`, `v0.3.0`, `v0.3.1`).
+etiqueta (`v0.2.0`, `v0.3.0`, `v0.3.1`, `v0.4.1`).
 
 ## Versión release firmada
 

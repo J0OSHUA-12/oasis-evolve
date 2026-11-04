@@ -231,9 +231,9 @@ private fun ScreenTimeWidget(
     modifier: Modifier,
 ) {
     val hasAccess by viewModel.hasUsageAccess.collectAsStateWithLifecycle()
-    val usage by viewModel.usage.collectAsStateWithLifecycle()
+    val today by viewModel.today.collectAsStateWithLifecycle()
     val labels = remember(state.allApps) { state.allApps.associate { it.packageName to it.label } }
-    val overview = usage
+    val overview = today
 
     Column(
         modifier
@@ -259,7 +259,7 @@ private fun ScreenTimeWidget(
                 tint = DarkInk,
                 modifier = Modifier
                     .size(20.dp)
-                    .clickable { viewModel.refreshUsage(force = true) },
+                    .clickable { viewModel.refreshToday(force = true) },
             )
         }
         when {
@@ -271,17 +271,17 @@ private fun ScreenTimeWidget(
             overview == null -> Text("Calculando…", color = DarkInk, style = MaterialTheme.typography.bodySmall)
             else -> {
                 Text(
-                    formatDuration(overview.total.todayMs),
+                    formatDuration(overview.totalMs),
                     color = DarkInk,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                 )
                 // Los servicios del sistema cuentan en el total, pero no son apps que se puedan abrir.
-                overview.apps.filter { it.todayMs > 0 && it.packageName in labels }.take(3).forEachIndexed { index, app ->
+                overview.apps.filter { it.first in labels }.take(3).forEachIndexed { index, (pkg, ms) ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            shortDuration(app.todayMs),
+                            shortDuration(ms),
                             color = if (index == 0) Color.White else DarkInk,
                             fontSize = 11.sp,
                             maxLines = 1,
@@ -298,7 +298,7 @@ private fun ScreenTimeWidget(
                         )
                         Spacer(Modifier.width(7.dp))
                         Text(
-                            labels[app.packageName] ?: app.packageName.orEmpty(),
+                            labels.getValue(pkg),
                             color = DarkInk,
                             fontSize = 12.sp,
                             maxLines = 1,

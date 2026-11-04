@@ -20,6 +20,18 @@ object EventType {
     const val DEVICE_SHUTDOWN = 26
 }
 
+/** Solo estos tipos influyen en el cálculo. Descartar el resto pronto ahorra la mayor parte del trabajo. */
+fun isCountedEvent(type: Int): Boolean = when (type) {
+    EventType.ACTIVITY_RESUMED,
+    EventType.ACTIVITY_PAUSED,
+    EventType.ACTIVITY_STOPPED,
+    EventType.SCREEN_NON_INTERACTIVE,
+    EventType.KEYGUARD_SHOWN,
+    EventType.DEVICE_SHUTDOWN,
+    -> true
+    else -> false
+}
+
 data class AppUsage(val foregroundMs: Long, val opens: Int)
 
 data class UsageSummary(

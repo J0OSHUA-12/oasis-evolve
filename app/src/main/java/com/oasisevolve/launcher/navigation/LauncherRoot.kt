@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
@@ -42,6 +43,7 @@ import com.oasisevolve.launcher.AppList
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.drawer.DrawerScreen
 import com.oasisevolve.launcher.focus.InterruptionScreen
+import com.oasisevolve.launcher.focus.TimeUpScreen
 import com.oasisevolve.launcher.home.AppActionsSheet
 import com.oasisevolve.launcher.home.AppPickerSheet
 import com.oasisevolve.launcher.home.DOCK_TOTAL_HEIGHT
@@ -83,6 +85,9 @@ fun LauncherRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val gate by viewModel.gate.collectAsStateWithLifecycle()
     val iconRevision by viewModel.iconRevision.collectAsStateWithLifecycle()
+    val guardEnabled by viewModel.guardEnabled.collectAsStateWithLifecycle()
+    val timeUp by viewModel.timeUp.collectAsStateWithLifecycle()
+    val today by viewModel.today.collectAsStateWithLifecycle()
     val settings = state.settings
     val pageCount = if (settings.libraryEnabled) LIBRARY + 1 else DRAWER + 1
     val pager = rememberPagerState(initialPage = HOME) { pageCount }
@@ -102,6 +107,8 @@ fun LauncherRoot(
     val usefulDrag = remember { GridDragController() }
 
     fun goTo(page: Int) {
+        // Ya está ahí: animar hacia la misma página redibujaba todo durante la vuelta a Inicio.
+        if (pager.currentPage == page && pager.currentPageOffsetFraction == 0f && !pager.isScrollInProgress) return
         scope.launch {
             if (settings.reduceMotion) pager.scrollToPage(page) else pager.animateScrollToPage(page)
         }
@@ -123,8 +130,12 @@ fun LauncherRoot(
         }
     }
 
+    // El historial completo solo se calcula al ir hacia Bienestar, nunca al volver a Inicio.
+    LaunchedEffect(pager.targetPage) {
+        if (pager.targetPage == WELLBEING) viewModel.refreshUsage()
+    }
+
     LaunchedEffect(pager.settledPage) {
-        if (pager.settledPage == WELLBEING) viewModel.refreshUsage()
         // Al cambiar de pantalla se termina la edición de la anterior.
         val current = when (pager.settledPage) {
             HOME -> GridTarget.HOME
@@ -151,10 +162,12 @@ fun LauncherRoot(
     }
 
     BackHandler(
-        enabled = gate != null || openFolder != null || showSettings || editing != null || pager.currentPage != HOME,
+        enabled = gate != null || timeUp != null || openFolder != null || showSettings || editing != null ||
+            pager.currentPage != HOME,
     ) {
         when {
             gate != null -> viewModel.dismissGate()
+            timeUp != null -> viewModel.dismissTimeUp()
             openFolder != null -> openFolderId = null
             showSettings -> showSettings = false
             editing != null -> editing = null
@@ -195,6 +208,9 @@ fun LauncherRoot(
                             }
                             .focusGroup()
                             .graphicsLayer {
+                                // Sin capa intermedia: la transparencia se aplica a cada dibujo, mucho más barato
+                                // que pintar la página entera en otra textura en cada fotograma del deslizamiento.
+                                compositingStrategy = CompositingStrategy.ModulateAlpha
                                 if (!settings.reduceMotion) {
                                     val offset = pager.pageOffset(page).absoluteValue.coerceAtMost(1f)
                                     alpha = 1f - offset * 0.35f
@@ -284,9 +300,20 @@ fun LauncherRoot(
                     InterruptionScreen(
                         request = request,
                         waitSeconds = settings.waitSeconds,
+                        guardEnabled = guardEnabled,
                         onContinue = viewModel::continueGate,
                         onDismiss = {
                             viewModel.dismissGate()
+                            goTo(HOME)
+                        },
+                    )
+                }
+                timeUp?.let { app ->
+                    TimeUpScreen(
+                        app = app,
+                        todayMs = today?.apps?.firstOrNull { it.first == app.packageName }?.second,
+                        onDismiss = {
+                            viewModel.dismissTimeUp()
                             goTo(HOME)
                         },
                     )

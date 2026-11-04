@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Oasis Evolve</string>
+    <string name="guard_label">Oasis Evolve: bloqueo de apps</string>
+    <string name="guard_description">Avisa a Oasis Evolve cuando se abre una de las apps que marcaste como nivel 4 o con temporizador, también desde Recientes o una notificación. Así puede pedirte pasar por la interrupción y cerrar la app cuando se acaba su tiempo. Solo recibe el nombre de esas apps; no lee el contenido de la pantalla ni toca otras apps.</string>
+    <string name="quiet_label">Oasis Evolve: filtro de notificaciones</string>
 </resources>

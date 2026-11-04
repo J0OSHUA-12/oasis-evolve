@@ -8,9 +8,17 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.telecom.TelecomManager
 import android.view.View
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
+import androidx.room.withTransaction
 import androidx.lifecycle.viewModelScope
 import com.oasisevolve.launcher.focus.AccessLevel
+import com.oasisevolve.launcher.focus.GuardService
+import com.oasisevolve.launcher.focus.packageOfKey
+import com.oasisevolve.launcher.quiet.QuietService
+import com.oasisevolve.launcher.storage.Backup
+import com.oasisevolve.launcher.storage.parseBackup
+import com.oasisevolve.launcher.storage.toJson
 import com.oasisevolve.launcher.home.DragPayload
 import com.oasisevolve.launcher.home.DropTarget
 import com.oasisevolve.launcher.library.autoCategory
@@ -45,6 +53,7 @@ import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.system.IconPackInfo
 import com.oasisevolve.launcher.usage.AppStats
 import com.oasisevolve.launcher.usage.UsageOverview
+import com.oasisevolve.launcher.usage.UsageToday
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -106,7 +115,18 @@ data class LauncherState(
     }
 }
 
-data class GateRequest(val app: AppEntry, val stats: AppStats?)
+/**
+ * Interrupción antes de abrir una app. [returned] indica que la app se abrió sin pasar por el
+ * launcher, desde Recientes o una notificación. [timerMinutes] es el temporizador propuesto.
+ */
+data class GateRequest(
+    val app: AppEntry,
+    val stats: AppStats?,
+    val returned: Boolean = false,
+    val timerMinutes: Int? = null,
+    /** La última vez se acabó su temporizador. */
+    val afterTimeUp: Boolean = false,
+)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val container = application as EvolveApp
@@ -130,6 +150,23 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _usage = MutableStateFlow<UsageOverview?>(null)
     val usage: StateFlow<UsageOverview?> = _usage
+
+    private val _today = MutableStateFlow<UsageToday?>(null)
+    val today: StateFlow<UsageToday?> = _today
+
+    /** App cuyo temporizador acaba de terminar mientras estaba abierta. */
+    private val _timeUp = MutableStateFlow<AppEntry?>(null)
+    val timeUp: StateFlow<AppEntry?> = _timeUp
+
+    private val _guardEnabled = MutableStateFlow(GuardService.isEnabled(application))
+    val guardEnabled: StateFlow<Boolean> = _guardEnabled
+
+    /** Activado en Android pero sin funcionar: hay que apagarlo y volver a encenderlo. */
+    private val _guardStalled = MutableStateFlow(false)
+    val guardStalled: StateFlow<Boolean> = _guardStalled
+
+    private val _quietEnabled = MutableStateFlow(QuietService.isEnabled(application))
+    val quietEnabled: StateFlow<Boolean> = _quietEnabled
 
     private val _hasUsageAccess = MutableStateFlow(usageRepo.hasAccess())
     val hasUsageAccess: StateFlow<Boolean> = _hasUsageAccess
@@ -176,29 +213,133 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             appRepo.launch(app, source)
             return
         }
+        showGate(app, returned = false)
+    }
+
+    private fun showGate(app: AppEntry, returned: Boolean, afterTimeUp: Boolean = false) {
         viewModelScope.launch {
             val stats = if (usageRepo.hasAccess()) currentUsage().statsFor(app.packageName) else null
-            _gate.value = GateRequest(app, stats)
+            _gate.value = GateRequest(app, stats, returned, state.value.settings.appTimers[app.key], afterTimeUp)
         }
     }
 
-    fun continueGate() {
-        _gate.value?.let { appRepo.launch(it.app, null) }
+    /** Abre la app tras la interrupción. Con el bloqueo activo, el temporizador la cerrará al acabar. */
+    fun continueGate(timerMinutes: Int?) {
+        _gate.value?.let { request ->
+            container.guard.grant(request.app.packageName, System.currentTimeMillis(), timerMinutes)
+            appRepo.launch(request.app, null)
+        }
         _gate.value = null
     }
+
+    private fun appForPackage(pkg: String): AppEntry? {
+        val apps = state.value.allApps.filter { it.packageName == pkg }
+        return apps.firstOrNull { !it.isWorkProfile } ?: apps.firstOrNull()
+    }
+
+    /** Una app vigilada se abrió sin pasar por el launcher. */
+    fun gateFromGuard(pkg: String, afterTimeUp: Boolean) {
+        appForPackage(pkg)?.let { showGate(it, returned = !afterTimeUp, afterTimeUp = afterTimeUp) }
+    }
+
+    fun timeUpFromGuard(pkg: String) {
+        _gate.value = null
+        _timeUp.value = appForPackage(pkg)
+        refreshToday(force = true)
+    }
+
+    fun dismissTimeUp() {
+        _timeUp.value = null
+    }
+
+    fun setTimer(app: AppEntry, minutes: Int?) = updateSettings { s ->
+        s.copy(appTimers = if (minutes == null) s.appTimers - app.key else s.appTimers + (app.key to minutes))
+    }
+
+    fun toggleQuiet(app: AppEntry) = updateSettings { s ->
+        val pkg = packageOfKey(app.key)
+        s.copy(quietApps = if (pkg in s.quietApps) s.quietApps - pkg else s.quietApps + pkg)
+    }
+
+    fun openGuardSettings() = getApplication<Application>().startActivity(GuardService.settingsIntent())
+
+    fun openQuietSettings() {
+        val app = getApplication<Application>()
+        app.startActivity(QuietService.settingsIntent(app))
+    }
+
+    /** Copia de seguridad en un archivo elegido por el usuario. */
+    fun exportBackup(uri: Uri) {
+        viewModelScope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    val json = Backup(repo.settings.first(), notesDao.all()).toJson(System.currentTimeMillis())
+                    val stream = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
+                    checkNotNull(stream).use { it.write(json.toByteArray()) }
+                }.isSuccess
+            }
+            toast(if (saved) "Copia guardada" else "No se pudo guardar la copia")
+        }
+    }
+
+    /** Sustituye los ajustes y las notas por los de una copia. */
+    fun importBackup(uri: Uri) {
+        viewModelScope.launch {
+            val backup = withContext(Dispatchers.IO) {
+                runCatching {
+                    val stream = getApplication<Application>().contentResolver.openInputStream(uri)
+                    checkNotNull(stream).use { it.readBytes().decodeToString() }
+                }.getOrNull()?.let(::parseBackup)
+            }
+            if (backup == null) {
+                toast("Ese archivo no es una copia de Oasis Evolve")
+                return@launch
+            }
+            repo.update { backup.settings }
+            container.database.withTransaction {
+                notesDao.clear()
+                notesDao.insertAll(backup.notes)
+            }
+            toast("Copia restaurada")
+        }
+    }
+
+    private fun toast(text: String) = Toast.makeText(getApplication(), text, Toast.LENGTH_SHORT).show()
 
     fun dismissGate() {
         _gate.value = null
     }
 
+    /** Volver a Inicio debe ser rápido: solo se recalcula el día de hoy, y solo si el dato tiene más de un minuto. */
     fun onResume() {
-        refreshUsage()
+        refreshToday()
         appRepo.dropIconPackIfUninstalled()
+        val app = getApplication<Application>()
+        _guardEnabled.value = GuardService.isEnabled(app)
+        _guardStalled.value = _guardEnabled.value && !GuardService.connected
+        _quietEnabled.value = QuietService.isEnabled(app)
+    }
+
+    fun refreshToday(force: Boolean = false) {
+        val allowed = usageRepo.hasAccess()
+        _hasUsageAccess.value = allowed
+        if (!allowed) {
+            _today.value = null
+            return
+        }
+        val fresh = _today.value?.let { System.currentTimeMillis() - it.generatedAt < USAGE_MAX_AGE_MS } == true
+        if (fresh && !force) return
+        viewModelScope.launch { _today.value = usageRepo.today() }
     }
 
     private suspend fun currentUsage(): UsageOverview {
         _usage.value?.takeIf { System.currentTimeMillis() - it.generatedAt < USAGE_MAX_AGE_MS }?.let { return it }
-        return usageRepo.overview().also { _usage.value = it }
+        return loadOverview()
+    }
+
+    private suspend fun loadOverview(): UsageOverview = usageRepo.overview().also {
+        _usage.value = it
+        _today.value = it.today()
     }
 
     /** Las estadísticas son costosas: se reutilizan si son recientes, salvo que se pida lo contrario. */
@@ -209,9 +350,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             _usage.value = null
             return
         }
-        viewModelScope.launch {
-            _usage.value = if (force) usageRepo.overview() else currentUsage()
-        }
+        viewModelScope.launch { if (force) loadOverview() else currentUsage() }
     }
 
     fun openUsageAccess() = appRepo.openUsageAccessSettings()

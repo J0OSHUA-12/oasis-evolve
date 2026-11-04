@@ -1,3 +1,50 @@
+# Resultados de pruebas (v0.4.1, 2026-11-03)
+
+## Prueba en el teléfono real (v0.4.0)
+
+Tecno LJ7, HiOS 16.3, Android 16. Se instaló la 0.4.0 de depuración y después la 0.4.0 optimizada encima. Se hizo una copia de los datos antes de cada paso, fuera del repositorio. Los gestos los inyectó `adb`; tú usabas el teléfono a la vez en algunos momentos.
+
+| Prueba | Resultado | Cómo se comprobó |
+|---|---|---|
+| Activar el bloqueo en Accesibilidad | Correcto | Lo activaste tú. `dumpsys accessibility`: solo `TYPE_WINDOW_STATE_CHANGED`, `capabilities=0` (no lee la pantalla) |
+| Abrir TikTok sin pasar por el launcher | Bloqueado | El launcher pasa delante con «Volviste a TikTok» y la interrupción |
+| Continuar y volver a TikTok a los 10 s | Permitido | TikTok sigue en primer plano |
+| Volver a TikTok tras más de un minuto fuera | Bloqueado | Interrupción de nuevo. Se trajo su tarea al frente con `am start`, como hace Recientes; no se tocó la tarjeta de Recientes |
+| Temporizador de 5 min en Gmail, saliendo antes | Correcto | Al volver a Gmail pide pasar por la interrupción |
+| Filtro: notificación fuera de la franja | Pospuesta | `cmd notification snoozed`: vuelve mañana a las 21:00 |
+| Filtro: notificación dentro de la franja | Pasa | Aparece en la barra |
+| Filtro: cambiar la franja | Correcto | Las ya visibles de esas apps se posponen al instante |
+| Los dos permisos tras instalar la optimizada encima | Se conservan | Servicio de accesibilidad conectado y filtro activo |
+| Registro de fallos | Vacío | `logcat -b crash` durante toda la prueba |
+
+Las notificaciones de prueba las publicó el shell de `adb`, con un gancho que solo existe en la versión de depuración. No se tocó ninguna notificación de tus apps.
+
+### Rendimiento: depuración 0.3.1 frente a optimizada 0.4.0
+
+Misma secuencia en las dos: abrir Teléfono desde el dock y volver con Inicio cuatro veces, y recorrer las seis pantallas dos veces.
+
+| Medida | 0.3.1 depuración | 0.4.0 optimizada |
+|---|---|---|
+| Fotogramas lentos al volver a Inicio | 16 % (percentil 99: 150 ms) | 3–5 % (percentil 99: 48–61 ms) |
+| Fotogramas lentos al pasar de pantalla | 2,6 % | 1,4–1,8 % |
+| Arranque (`Displayed`) | 933 ms | 369–761 ms |
+
+Un registro del sistema mostró de dónde venía la lentitud: al volver a Inicio, Android entrega de golpe las actualizaciones de tus widgets (WhatsApp, calendario, ajedrez y finanzas), y la versión de depuración tardaba mucho en recolocarlos. Además, cada vuelta recalculaba 60 días de estadísticas. Ahora solo se recalcula el día de hoy.
+
+### Fallos y límites encontrados en el teléfono
+
+1. **Forzar la detención del launcher desconecta el bloqueo.** Lo provoqué yo al medir el arranque en frío con `force-stop`. Android no lo volvió a conectar, y por eso el segundo temporizador no cerró Gmail. La 0.4.1 avisa en Ajustes cuando el bloqueo está activado pero desconectado. Ese aviso no se ha probado en el teléfono.
+2. **El texto tras acabarse el tiempo decía «se abrió sin pasar por el launcher».** Corregido antes de instalar la optimizada: ahora dice «Ya usaste tu tiempo».
+3. `uiautomator dump` deja de funcionar con cualquier servicio de accesibilidad activo; es una limitación de esa herramienta de prueba. Las pruebas siguientes se hicieron con capturas y coordenadas.
+
+### Sin verificar en el teléfono
+
+- **La pantalla «Se acabó tu tiempo» con la app delante.** En la primera prueba saliste de Gmail antes de los 5 minutos, y en la segunda el bloqueo estaba desconectado.
+- **La 0.4.1.** No se instaló: el teléfono dejó de aceptar la conexión USB antes.
+- **Exportar e importar copia.** Probado solo con pruebas unitarias, sin el selector de archivos del teléfono.
+- **El filtro tras reiniciar el teléfono, y con notificaciones reales de tus apps.**
+- **Gmail tiene un temporizador de 5 minutos de la prueba.** Quítalo: mantén pulsado Gmail > Temporizador > Sin límite.
+
 # Resultados de pruebas (v0.3.1, 2026-10-31)
 
 **Teléfono real:** Tecno LJ7, HiOS 16.3, Android 16, 1080×2460, con APK de depuración 0.3.1 instalado encima de la 0.3.0 y gestos inyectados por `adb`. Resultados en la sección siguiente.
@@ -44,7 +91,7 @@ Se hizo una copia de los datos antes de cada actualización, fuera del repositor
 
 ## Pruebas unitarias
 
-`.\gradlew.bat :app:testDebugUnitTest`: **73 de 73 correctas** (`OrganizerTest` 33, `LogicTest` 19, `UsageCalculatorTest` 21).
+`.\gradlew.bat :app:testDebugUnitTest`: en la 0.4.1, **89 de 89 correctas** (`GuardAndQuietTest` 16, `OrganizerTest` 33, `LogicTest` 19, `UsageCalculatorTest` 21). En la 0.3.1 eran 73.
 Cubren cuadrícula, solapes, carpetas, dock, composición inicial, migración desde 0.2, estadísticas, comparaciones y progreso del tiempo.
 
 ## Criterios de aceptación (v0.3.0, emulador)

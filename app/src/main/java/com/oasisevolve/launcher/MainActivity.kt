@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import com.oasisevolve.launcher.focus.GuardService
 import com.oasisevolve.launcher.navigation.LauncherRoot
 import com.oasisevolve.launcher.widgets.REQUEST_CONFIGURE_WIDGET
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -36,6 +37,18 @@ class MainActivity : ComponentActivity() {
                 },
             )
         }
+        handleGuard(intent)
+    }
+
+    /** El servicio de bloqueo abre el launcher para frenar una app o avisar de que se acabó su tiempo. */
+    private fun handleGuard(intent: Intent?) {
+        intent ?: return
+        intent.getStringExtra(GuardService.EXTRA_GATE_PACKAGE)?.let { pkg ->
+            viewModel.gateFromGuard(pkg, intent.getBooleanExtra(GuardService.EXTRA_AFTER_TIME_UP, false))
+        }
+        intent.getStringExtra(GuardService.EXTRA_TIME_UP_PACKAGE)?.let(viewModel::timeUpFromGuard)
+        intent.removeExtra(GuardService.EXTRA_GATE_PACKAGE)
+        intent.removeExtra(GuardService.EXTRA_TIME_UP_PACKAGE)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -43,6 +56,7 @@ class MainActivity : ComponentActivity() {
         if (intent.hasCategory(Intent.CATEGORY_HOME)) {
             lifecycleScope.launch { homeRequests.emit(Unit) }
         }
+        handleGuard(intent)
     }
 
     override fun onStart() {

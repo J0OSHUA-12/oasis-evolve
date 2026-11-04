@@ -33,6 +33,15 @@ interface NoteDao {
 
     @Delete
     suspend fun delete(note: Note)
+
+    @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
+    suspend fun all(): List<Note>
+
+    @Query("DELETE FROM notes")
+    suspend fun clear()
+
+    @Insert
+    suspend fun insertAll(notes: List<Note>)
 }
 
 @Database(entities = [Note::class], version = 1, exportSchema = false)

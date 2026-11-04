@@ -28,6 +28,14 @@ data class AppStats(
     val projection: TimeProjection get() = projectTime(averageDailyMs)
 }
 
+/** Lo que necesita el widget de Inicio: el tiempo de hoy, sin el historial completo. */
+data class UsageToday(
+    val generatedAt: Long,
+    val totalMs: Long,
+    /** De mayor a menor uso. */
+    val apps: List<Pair<String, Long>>,
+)
+
 data class UsageOverview(
     val generatedAt: Long,
     val total: AppStats,
@@ -35,6 +43,12 @@ data class UsageOverview(
     val apps: List<AppStats>,
     val coverage30d: Int,
 ) {
+    fun today(): UsageToday = UsageToday(
+        generatedAt,
+        total.todayMs,
+        apps.filter { it.todayMs > 0 }.sortedByDescending { it.todayMs }.map { it.packageName.orEmpty() to it.todayMs },
+    )
+
     fun statsFor(packageName: String): AppStats =
         apps.firstOrNull { it.packageName == packageName } ?: total.copy(
             packageName = packageName,
@@ -50,6 +64,9 @@ data class UsageOverview(
 }
 
 /** Un único motor de estadísticas: el panel de Bienestar y las interrupciones leen el mismo resumen. */
+/** Horas antes de medianoche que se leen para saber qué estaba abierto al empezar el día. */
+private const val TODAY_CONTEXT_MS = 6 * 3_600_000L
+
 class UsageRepository(private val context: Context) {
     private val manager = context.getSystemService(UsageStatsManager::class.java)
     private val ownPackage = context.packageName
@@ -65,14 +82,32 @@ class UsageRepository(private val context: Context) {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
+    /**
+     * Solo el día de hoy: lee unas horas de eventos en lugar de 60 días. Se usa al volver a Inicio,
+     * que es cuando el cálculo completo hacía que el launcher fuera lento.
+     */
+    suspend fun today(): UsageToday = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val midnight = midnight().timeInMillis
+        val today = computeWindows(readEvents(midnight - TODAY_CONTEXT_MS, now), listOf(midnight to now), launcherPackages())
+            .single()
+        UsageToday(
+            now,
+            today.totalMs,
+            today.perApp.filterValues { it.foregroundMs > 0 }.map { it.key to it.value.foregroundMs }.sortedByDescending { it.second },
+        )
+    }
+
+    private fun midnight(): Calendar = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+
     suspend fun overview(): UsageOverview = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        val midnight = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
+        val midnight = midnight()
 
         val days = (6 downTo 0).map { back ->
             val day = (midnight.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -back) }.timeInMillis
@@ -137,7 +172,9 @@ class UsageRepository(private val context: Context) {
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            yield(RawEvent(event.eventType, event.packageName, event.className, event.timeStamp))
+            if (isCountedEvent(event.eventType)) {
+                yield(RawEvent(event.eventType, event.packageName, event.className, event.timeStamp))
+            }
         }
     }
 }

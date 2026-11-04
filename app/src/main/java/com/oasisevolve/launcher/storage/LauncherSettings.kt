@@ -56,6 +56,12 @@ data class LauncherSettings(
     val widgetIds: List<Int> = emptyList(),
     val widgetHeights: Map<Int, Int> = emptyMap(),
     val waitSeconds: Int = 10,
+    /** Minutos de uso permitidos cada vez que se abre una app, por clave de app. */
+    val appTimers: Map<String, Int> = emptyMap(),
+    /** Paquetes cuyas notificaciones se posponen hasta la franja elegida. */
+    val quietApps: Set<String> = emptySet(),
+    val quietStartMinute: Int = 21 * 60,
+    val quietLengthMinutes: Int = 60,
     val gridColumns: Int = 4,
     val gridRows: Int = 7,
     val iconSizeDp: Int = 56,
@@ -116,6 +122,10 @@ data class LauncherSettings(
         put("widgetIds", JSONArray(widgetIds))
         put("widgetHeights", JSONObject(widgetHeights.mapKeys { it.key.toString() } as Map<*, *>))
         put("waitSeconds", waitSeconds)
+        put("appTimers", JSONObject(appTimers as Map<*, *>))
+        put("quietApps", JSONArray(quietApps.toList()))
+        put("quietStartMinute", quietStartMinute)
+        put("quietLengthMinutes", quietLengthMinutes)
         put("gridColumns", gridColumns)
         put("gridRows", gridRows)
         put("iconSizeDp", iconSizeDp)
@@ -206,6 +216,10 @@ data class LauncherSettings(
                 widgetHeights = o.map("widgetHeights") { obj, key -> obj.getInt(key) }
                     .mapKeys { it.key.toInt() },
                 waitSeconds = o.optInt("waitSeconds", defaults.waitSeconds),
+                appTimers = o.map("appTimers") { obj, key -> obj.getInt(key) },
+                quietApps = o.stringList("quietApps").toSet(),
+                quietStartMinute = o.optInt("quietStartMinute", defaults.quietStartMinute),
+                quietLengthMinutes = o.optInt("quietLengthMinutes", defaults.quietLengthMinutes),
                 gridColumns = o.optInt("gridColumns", defaults.gridColumns),
                 gridRows = o.optInt("gridRows", defaults.gridRows),
                 iconSizeDp = o.optInt("iconSizeDp", defaults.iconSizeDp),

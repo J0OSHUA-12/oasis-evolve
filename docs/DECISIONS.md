@@ -41,10 +41,18 @@
 | 37 | 2026-10-31 | Cada ventana de uso recibe también los eventos anteriores a ella | Así se sabe qué estaba abierto sin suponerlo; suponerlo inventó 20 días de uso |
 | 38 | 2026-10-31 | Lo que no cabe en la composición va a Widgets o Apps útiles | Una fila oculta hacía que Inicio se desplazara sin que se viera nada |
 | 39 | 2026-10-31 | Avisar de widgets sin contenido en lugar de ocultar los de otro launcher | Solo se comprobó en un widget de HiOS; otros podrían funcionar |
+| 40 | 2026-11-03 | Servicio de accesibilidad limitado para el bloqueo y el temporizador | Lo elegiste frente a superposición con vigilancia continua y frente a no añadir permisos |
+| 41 | 2026-11-03 | El servicio solo escucha las apps vigiladas y no lee la pantalla | Lista de paquetes fijada en tiempo real; `canRetrieveWindowContent=false` |
+| 42 | 2026-11-03 | Un minuto fuera de la app basta para volver a pedir la interrupción | Cubre volver desde Recientes sin estorbar al contestar un mensaje rápido |
+| 43 | 2026-11-03 | Al acabarse el temporizador, la siguiente apertura pasa por la interrupción | Si no, reabrir la app reiniciaría el tiempo sin esfuerzo |
+| 44 | 2026-11-03 | Filtro con la función de posponer de Android, sin guardar el contenido | Mínimos datos personales; contrapartida: un reinicio puede soltarlas antes |
+| 45 | 2026-11-03 | Versión «personal» optimizada con el identificador y la firma de depuración | Se instala encima sin perder datos; la de depuración era bastante más lenta |
+| 46 | 2026-11-03 | Exportar e importar copia desde la app | Con la versión optimizada ya no se pueden copiar los datos por USB |
+| 47 | 2026-11-03 | Al volver a Inicio solo se recalcula el día de hoy | Recalcular 60 días en cada vuelta coincidía con la animación |
 
 ## Decisiones pendientes de tu aprobación
 
 1. Modo de límites reforzado, con permiso de superposición (Fase 4).
-2. Cualquier uso de `AccessibilityService`.
+2. Ampliar el servicio de accesibilidad más allá de detectar qué app se abre. La versión limitada ya la aprobaste.
 3. Método para el doble toque de bloqueo (Fase 3).
 4. Añadir clima, que exigiría permiso de Internet.

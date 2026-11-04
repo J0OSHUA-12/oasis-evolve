@@ -34,11 +34,17 @@ Principio: cada permiso se pide solo cuando una función activada lo necesita.
 
 El vínculo de widgets usa `ACTION_APPWIDGET_BIND`, con confirmación del sistema, y no requiere un permiso propio.
 
+### Añadidos en v0.4 (opcionales; los activas tú en Ajustes de Android)
+
+| Servicio | Función | Qué recibe | Si no se activa |
+|---|---|---|---|
+| `AccessibilityService` («Oasis Evolve: bloqueo de apps») | Interrupción al volver desde Recientes o notificaciones, y cierre por temporizador | Solo el aviso de cambio de ventana, y solo de las apps de nivel 4 o con temporizador. No lee la pantalla ni actúa sobre otras apps | La interrupción solo actúa al abrir desde el launcher, y el temporizador no puede cerrar la app |
+| `NotificationListenerService` («Oasis Evolve: filtro de notificaciones») | Posponer notificaciones de las apps elegidas | Las notificaciones nuevas. Solo se usan su app y su identificador; no se guarda su texto | El filtro no hace nada |
+
 ### Previstos en fases posteriores (todos opcionales)
 
 | Permiso o servicio | Función | Motivo y riesgo |
 |---|---|---|
-| Notification Listener | Filtro de notificaciones | Permite leer notificaciones; se guardarán solo en local |
 | `READ_CALENDAR` | Widget de calendario | Solo si se añade ese widget |
 | `POST_NOTIFICATIONS`, servicio en primer plano | Monitor de límites | Se muestra una notificación visible mientras esté activo |
 | `SYSTEM_ALERT_WINDOW` | Pantalla de límite agotado sobre otra app | Sensible; solo si activas el modo de límites reforzado |

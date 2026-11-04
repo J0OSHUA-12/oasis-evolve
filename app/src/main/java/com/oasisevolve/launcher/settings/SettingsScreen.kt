@@ -68,6 +68,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.oasisevolve.launcher.LauncherState
 import com.oasisevolve.launcher.LauncherViewModel
+import com.oasisevolve.launcher.home.AppPickerSheet
+import com.oasisevolve.launcher.quiet.QuietLog
+import com.oasisevolve.launcher.quiet.QuietWindow
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import java.time.Instant
+import java.time.ZoneId
 import com.oasisevolve.launcher.storage.Accent
 import com.oasisevolve.launcher.storage.AppFont
 import com.oasisevolve.launcher.storage.IconShape
@@ -106,7 +113,29 @@ fun SettingsScreen(
             context.getSystemService(WindowManager::class.java).isCrossWindowBlurEnabled
     }
     var confirmReset by remember { mutableStateOf(false) }
+    var pickQuietApps by remember { mutableStateOf(false) }
+    val guardEnabled by viewModel.guardEnabled.collectAsStateWithLifecycle()
+    val guardStalled by viewModel.guardStalled.collectAsStateWithLifecycle()
+    val quietEnabled by viewModel.quietEnabled.collectAsStateWithLifecycle()
+    val exportFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let(viewModel::exportBackup)
+    }
+    val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::importBackup)
+    }
     fun update(change: (LauncherSettings) -> LauncherSettings) = viewModel.updateSettings(change)
+
+    if (pickQuietApps) {
+        AppPickerSheet(
+            title = "Notificaciones a posponer",
+            state = state,
+            viewModel = viewModel,
+            isSelected = { it.packageName in settings.quietApps },
+            onToggle = viewModel::toggleQuiet,
+            onDismiss = { pickQuietApps = false },
+            includeHidden = true,
+        )
+    }
 
     MaterialTheme(colorScheme = darkColors(settings.accent), typography = MaterialTheme.typography) {
         Surface(color = SettingsBackground, contentColor = Color.White, modifier = Modifier.fillMaxSize()) {
@@ -159,7 +188,37 @@ fun SettingsScreen(
                 }
 
                 StaticRow("Focus Mode", "Una interfaz mínima para eliminar distracciones. $PENDING")
-                StaticRow("Notification Filter", "Filtra notificaciones innecesarias de las apps que elijas. $PENDING")
+                Section("Notification Filter") {
+                    Hint("Las notificaciones de las apps que elijas se posponen y vuelven a aparecer en tu franja, por ejemplo antes de dormir. Se usa la función de posponer de Android: Oasis Evolve no lee ni guarda su texto.")
+                    if (!quietEnabled) {
+                        ActionRow("Conceder acceso a notificaciones", "Lo necesita el filtro para posponerlas") {
+                            viewModel.openQuietSettings()
+                        }
+                    }
+                    val quietApps = state.allApps.filter { it.packageName in settings.quietApps }.distinctBy { it.packageName }
+                    ActionRow(
+                        "Elegir apps",
+                        if (quietApps.isEmpty()) "Ninguna elegida" else quietApps.joinToString { it.label },
+                    ) { pickQuietApps = true }
+                    Options(
+                        "Puedes verlas desde las",
+                        listOf(19, 20, 21, 22, 23).map { it * 60 },
+                        settings.quietStartMinute,
+                        { "%02d:00".format(it / 60) },
+                    ) { v -> update { it.copy(quietStartMinute = v) } }
+                    Options("Durante", listOf(30, 60, 120), settings.quietLengthMinutes, { if (it < 60) "$it min" else "${it / 60} h" }) { v ->
+                        update { it.copy(quietLengthMinutes = v) }
+                    }
+                    val window = QuietWindow(settings.quietStartMinute, settings.quietLengthMinutes)
+                    val waiting = remember(quietEnabled, settings.quietApps) {
+                        QuietLog.waiting(context, window.nextOpening(Instant.now(), ZoneId.systemDefault()))
+                    }
+                    if (waiting.isNotEmpty()) {
+                        val labels = state.allApps.associate { it.packageName to it.label }
+                        Hint("Esperando: " + waiting.entries.joinToString { (pkg, count) -> "${labels[pkg] ?: pkg} $count" })
+                    }
+                    Hint("Las que no se pueden descartar, como música, llamadas o descargas, no se tocan. Si reinicias el teléfono, Android puede soltar las pospuestas antes de tiempo.")
+                }
                 Toggle("Show App Icons", settings.showIcons) { v -> update { it.copy(showIcons = v) } }
 
                 Section("Customization") {
@@ -262,7 +321,28 @@ fun SettingsScreen(
                     Options("Espera antes de abrir", listOf(5, 10, 15, 30, 60), settings.waitSeconds, { "$it s" }) { v ->
                         update { it.copy(waitSeconds = v) }
                     }
-                    Hint("Se aplica a las apps de nivel 4 cuando las abres desde este launcher. Las aperturas desde notificaciones u otras apps no pasan por aquí.")
+                    Hint("Se aplica a las apps de nivel 4 cuando las abres desde este launcher.")
+                    Toggle(
+                        "Bloqueo fuera del launcher",
+                        guardEnabled,
+                        if (guardEnabled) {
+                            "Activo: también frena al volver desde Recientes o una notificación, y cierra la app al acabar el temporizador"
+                        } else {
+                            "Desactivado: Recientes y notificaciones se saltan la interrupción, y el temporizador no puede cerrar la app"
+                        },
+                    ) { viewModel.openGuardSettings() }
+                    if (guardStalled) {
+                        ActionRow(
+                            "El bloqueo está desconectado",
+                            "Android lo activó pero no lo está ejecutando. Apágalo y vuelve a encenderlo en Accesibilidad.",
+                        ) { viewModel.openGuardSettings() }
+                    }
+                    Hint("Se activa en Ajustes de Android > Accesibilidad > Oasis Evolve. Solo recibe qué app se abre, y solo de las de nivel 4 o con temporizador. No lee la pantalla. Si sales de la app más de un minuto, al volver pasas otra vez por la interrupción.")
+                    val timed = state.allApps.filter { it.key in settings.appTimers }
+                    if (timed.isNotEmpty()) {
+                        Hint("Temporizadores: " + timed.joinToString { "${it.label} ${settings.appTimers.getValue(it.key)} min" })
+                    }
+                    Hint("Para poner un temporizador, mantén pulsada una app y elige su duración.")
                 }
 
                 StaticRow("Focus Mode Settings", PENDING)
@@ -280,6 +360,16 @@ fun SettingsScreen(
                 }
 
                 StaticRow("Gestures", PENDING)
+
+                Section("Copia de seguridad") {
+                    Hint("Guarda en un archivo tus pantallas, carpetas, dock, ajustes y notas. No incluye las fotos del widget ni los widgets de otras apps.")
+                    ActionRow("Exportar copia", "Elige dónde guardar el archivo") {
+                        exportFile.launch("oasis-evolve-${LocalDate.now()}.json")
+                    }
+                    ActionRow("Importar copia", "Sustituye la configuración actual y las notas") {
+                        importFile.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                    }
+                }
 
                 Section("Bienestar") {
                     Options(

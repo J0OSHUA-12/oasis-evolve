@@ -32,12 +32,18 @@ import com.oasisevolve.launcher.LauncherState
 import com.oasisevolve.launcher.LauncherViewModel
 import com.oasisevolve.launcher.drawer.filterBySearch
 import com.oasisevolve.launcher.focus.AccessLevel
+import com.oasisevolve.launcher.focus.TIMER_OPTIONS
+import com.oasisevolve.launcher.focus.timerLabel
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.oasisevolve.launcher.system.AppEntry
 import com.oasisevolve.launcher.ui.AppIcon
 import com.oasisevolve.launcher.ui.SearchField
 import com.oasisevolve.launcher.ui.TextDialog
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AppActionsSheet(
     app: AppEntry,
@@ -47,6 +53,7 @@ fun AppActionsSheet(
 ) {
     var chooseCategory by remember { mutableStateOf(false) }
     var newFolder by remember { mutableStateOf(false) }
+    val guardEnabled by viewModel.guardEnabled.collectAsStateWithLifecycle()
     val currentFolder = state.folderOf(app)
     val otherFolders = state.settings.folders.filter { it.id != currentFolder?.id }
 
@@ -117,6 +124,31 @@ fun AppActionsSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionTitle("Temporizador")
+            Text(
+                "Tiempo de uso cada vez que la abres. Al acabarse vuelves al launcher, y para volver a entrar pasas por la interrupción.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val timer = state.settings.appTimers[app.key]
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                TIMER_OPTIONS.forEach { option ->
+                    FilterChip(
+                        selected = timer == option,
+                        onClick = { viewModel.setTimer(app, option) },
+                        label = { Text(timerLabel(option)) },
+                    )
+                }
+            }
+            if (timer != null && !guardEnabled) {
+                Text(
+                    "Necesita el bloqueo activado en Ajustes > Interrupts.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             ActionRow("Categoría: ${state.category(app)}") { chooseCategory = !chooseCategory }
@@ -213,9 +245,12 @@ fun AppPickerSheet(
     isSelected: (AppEntry) -> Boolean,
     onToggle: (AppEntry) -> Unit,
     onDismiss: () -> Unit,
+    /** Incluye las apps ocultas: el filtro de notificaciones también debe poder elegirlas. */
+    includeHidden: Boolean = false,
 ) {
     var query by remember { mutableStateOf("") }
-    val results = filterBySearch(state.allApps.filter { state.level(it).inVisualScreens }, query) { it.label }
+    val candidates = if (includeHidden) state.allApps else state.allApps.filter { state.level(it).inVisualScreens }
+    val results = filterBySearch(candidates, query) { it.label }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

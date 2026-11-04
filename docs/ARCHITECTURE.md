@@ -32,7 +32,8 @@ LauncherApps    DataStore (JSON)   Room (notas)    UsageEvents      AppWidgetHos
 | `wellbeing` | Uso, progreso del periodo y notas |
 | `widgets` | Galería con vistas previas, widgets propios, Widget Center y ciclo oficial de `AppWidgetHost` |
 | `usage` | Cálculo y lectura de eventos de uso |
-| `focus` | Niveles de acceso e interrupción |
+| `focus` | Niveles de acceso, interrupción, temporizador y servicio de bloqueo (`GuardService`, lógica en `GuardBook`) |
+| `quiet` | Filtro de notificaciones (`QuietService`, horario en `QuietSchedule`) |
 | `settings` | Pantalla de ajustes |
 | `storage` | DataStore y Room |
 | `system` | `LauncherApps`, launcher predeterminado |
@@ -51,6 +52,12 @@ LauncherApps    DataStore (JSON)   Room (notas)    UsageEvents      AppWidgetHos
 
 `usage/UsageCalculator.kt` contiene el único cálculo. `UsageRepository` lee los eventos de los últimos 60 días en una sola
 pasada y calcula todas las ventanas a la vez. El resumen se reutiliza durante 60 segundos en Bienestar, en el widget y en las interrupciones.
+
+## Variantes de compilación
+
+- `debug`: depurable, con un gancho de pruebas para `adb` (`src/debug`) que nunca va en las demás.
+- `personal`: la del uso diario. Optimizada con R8, como la release, pero con el identificador y la firma de depuración para instalarse encima sin perder datos.
+- `release`: para firmar con tu propia clave.
 
 ## Módulo de pruebas
 

@@ -1,4 +1,13 @@
-# Funciones implementadas y pendientes (v0.3.1)
+# Funciones implementadas y pendientes (v0.4.1)
+
+## Nuevo en 0.4
+
+- **Bloqueo fuera del launcher** (opcional, con un servicio de accesibilidad limitado). Las apps de nivel 4 vuelven a pasar por la interrupción si se abren desde Recientes, desde una notificación o tras más de un minuto fuera. Probado en el teléfono con TikTok.
+- **Temporizador por app**, en el menú de cada app o al pasar la interrupción: 5, 10, 15, 30 o 60 minutos. Al acabarse, vuelves al launcher; para volver a entrar pasas por la interrupción. Probada en el teléfono la interrupción posterior; el aviso con la app delante no se llegó a ver.
+- **Filtro de notificaciones**: las de las apps que elijas se posponen hasta tu franja (por defecto, de 21:00 a 22:00). Usa la función de posponer de Android, sin guardar el texto. Probado en el teléfono con notificaciones de prueba.
+- **Copia de seguridad**: exportar e importar ajustes, pantallas, carpetas y notas en un archivo JSON. Sin las fotos del widget ni los widgets de otras apps. Probado con pruebas unitarias.
+- **Rendimiento**: al volver a Inicio solo se recalcula el día de hoy, y se descartan pronto los eventos que no cuentan. Hay una versión optimizada para el uso diario que se instala encima de la de depuración.
+
 
 ## Implementado y probado
 

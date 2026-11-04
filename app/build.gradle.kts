@@ -13,8 +13,8 @@ android {
         applicationId = "com.oasisevolve.launcher"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.3.1"
+        versionCode = 6
+        versionName = "0.4.1"
     }
 
     buildTypes {
@@ -26,6 +26,15 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+        }
+        // Versión optimizada para el uso diario: mismo código que la release, pero con el identificador y
+        // la firma de depuración, para instalarse encima de la de depuración sin perder los datos.
+        create("personal") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-personal"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
         }
     }
 

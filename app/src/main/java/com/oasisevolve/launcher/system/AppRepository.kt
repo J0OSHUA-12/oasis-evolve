@@ -140,8 +140,9 @@ class AppRepository(
     /** Un paquete de iconos sin actividad de launcher puede desinstalarse sin aviso del callback. */
     fun dropIconPackIfUninstalled() {
         val pack = loadedPack ?: return
-        if (installedIconPacks().none { it.packageName == pack }) {
-            scope.launch(Dispatchers.IO) { reloadIconPack(null) }
+        // Consultar los paquetes instalados lleva tiempo: fuera del hilo de la interfaz.
+        scope.launch(Dispatchers.IO) {
+            if (installedIconPacks().none { it.packageName == pack }) reloadIconPack(null)
         }
     }
 

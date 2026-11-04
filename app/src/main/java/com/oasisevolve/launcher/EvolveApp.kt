@@ -1,6 +1,7 @@
 package com.oasisevolve.launcher
 
 import android.app.Application
+import com.oasisevolve.launcher.focus.GuardBook
 import com.oasisevolve.launcher.storage.EvolveDatabase
 import com.oasisevolve.launcher.storage.SettingsRepository
 import com.oasisevolve.launcher.system.AppRepository
@@ -20,4 +21,7 @@ class EvolveApp : Application() {
     val database by lazy { EvolveDatabase.create(this) }
     val widgets by lazy { WidgetHostController(this) }
     val photos by lazy { PhotoStore(this) }
+
+    /** Sesiones de las apps vigiladas, compartidas por el launcher y el servicio de bloqueo. */
+    val guard = GuardBook()
 }

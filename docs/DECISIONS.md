@@ -49,6 +49,8 @@
 | 45 | 2026-11-03 | Versión «personal» optimizada con el identificador y la firma de depuración | Se instala encima sin perder datos; la de depuración era bastante más lenta |
 | 46 | 2026-11-03 | Exportar e importar copia desde la app | Con la versión optimizada ya no se pueden copiar los datos por USB |
 | 47 | 2026-11-03 | Al volver a Inicio solo se recalcula el día de hoy | Recalcular 60 días en cada vuelta coincidía con la animación |
+| 48 | 2026-11-04 | Los accesos a Ajustes de Android abren una tarea nueva | Si no, Android mostraba la última pantalla de Ajustes abierta, no la pedida |
+| 49 | 2026-11-04 | Tras cerrar una app por tiempo se ignoran sus avisos durante 3 s | Su último cambio de ventana se tomaba como una nueva apertura |
 
 ## Decisiones pendientes de tu aprobación
 

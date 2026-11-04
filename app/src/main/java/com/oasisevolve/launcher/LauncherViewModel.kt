@@ -239,6 +239,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     /** Una app vigilada se abrió sin pasar por el launcher. */
     fun gateFromGuard(pkg: String, afterTimeUp: Boolean) {
+        // Ya se está avisando de que se acabó su tiempo: una interrupción encima sobraría.
+        if (_timeUp.value?.packageName == pkg) return
         appForPackage(pkg)?.let { showGate(it, returned = !afterTimeUp, afterTimeUp = afterTimeUp) }
     }
 

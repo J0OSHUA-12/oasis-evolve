@@ -1,3 +1,27 @@
+# Resultados de pruebas (v0.4.3, 2026-11-04)
+
+## Prueba en el teléfono real (v0.4.1 a v0.4.3)
+
+Cada versión optimizada se instaló encima de la anterior. Los datos y el filtro de notificaciones se conservaron en todas.
+
+| Prueba | Resultado | Cómo se comprobó |
+|---|---|---|
+| Estado del bloqueo en Ajustes tras forzar la detención | «Desactivado», correcto | Android lo había quitado de la lista de servicios activados (`enabled_accessibility_services` vacío) |
+| Interruptor del bloqueo en Ajustes | Corregido en 0.4.2 | En 0.4.1 abría el acceso a notificaciones, porque Android reutilizaba la tarea de Ajustes ya abierta. En 0.4.2 abre Accesibilidad |
+| Temporizador de 5 min en Gmail con la app delante | Correcto | A los 5 min exactos, Gmail se cierra y aparece «Se acabó tu tiempo en Gmail» |
+| Interrupción sobrante tras el aviso | Corregido en 0.4.3 | En 0.4.2 aparecía también detrás. En 0.4.3, repetido, sale solo el aviso |
+| El bloqueo tras actualizar de 0.4.2 a 0.4.3 | Sigue conectado | `dumpsys accessibility` |
+| Quitar el temporizador | Correcto | Gmail vuelve a abrirse directamente |
+| Registro de fallos | Vacío | `logcat -b crash` |
+
+**Corrección de lo que decía la 0.4.1:** forzar la detención del launcher no deja el bloqueo «activado pero desconectado»: Android lo desactiva. Ajustes lo muestra como desactivado y hay que volver a activarlo. El aviso de «desconectado» queda para otros casos, y no se ha visto en el teléfono.
+
+### Sin verificar todavía
+
+- Exportar e importar copia en el teléfono.
+- El filtro con notificaciones reales de tus apps y tras reiniciar el teléfono.
+- El texto «Ya usaste tu tiempo» al reabrir una app tras el aviso. Se vio en 0.4.2; no se repitió en 0.4.3.
+
 # Resultados de pruebas (v0.4.1, 2026-11-03)
 
 ## Prueba en el teléfono real (v0.4.0)
@@ -33,17 +57,14 @@ Un registro del sistema mostró de dónde venía la lentitud: al volver a Inicio
 
 ### Fallos y límites encontrados en el teléfono
 
-1. **Forzar la detención del launcher desconecta el bloqueo.** Lo provoqué yo al medir el arranque en frío con `force-stop`. Android no lo volvió a conectar, y por eso el segundo temporizador no cerró Gmail. La 0.4.1 avisa en Ajustes cuando el bloqueo está activado pero desconectado. Ese aviso no se ha probado en el teléfono.
+1. **Forzar la detención del launcher desactiva el bloqueo.** Lo provoqué yo al medir el arranque en frío con `force-stop`, y por eso el segundo temporizador no cerró Gmail. Ver la sección de la 0.4.3.
 2. **El texto tras acabarse el tiempo decía «se abrió sin pasar por el launcher».** Corregido antes de instalar la optimizada: ahora dice «Ya usaste tu tiempo».
 3. `uiautomator dump` deja de funcionar con cualquier servicio de accesibilidad activo; es una limitación de esa herramienta de prueba. Las pruebas siguientes se hicieron con capturas y coordenadas.
 
 ### Sin verificar en el teléfono
 
-- **La pantalla «Se acabó tu tiempo» con la app delante.** En la primera prueba saliste de Gmail antes de los 5 minutos, y en la segunda el bloqueo estaba desconectado.
-- **La 0.4.1.** No se instaló: el teléfono dejó de aceptar la conexión USB antes.
 - **Exportar e importar copia.** Probado solo con pruebas unitarias, sin el selector de archivos del teléfono.
 - **El filtro tras reiniciar el teléfono, y con notificaciones reales de tus apps.**
-- **Gmail tiene un temporizador de 5 minutos de la prueba.** Quítalo: mantén pulsado Gmail > Temporizador > Sin límite.
 
 # Resultados de pruebas (v0.3.1, 2026-10-31)
 

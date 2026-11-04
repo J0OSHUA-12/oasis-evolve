@@ -26,6 +26,9 @@ import kotlinx.coroutines.launch
 /** Cuánto atrás mirar para saber si una app sigue abierta al acabarse su tiempo. */
 private const val FOREGROUND_LOOKBACK_MS = 6 * 3_600_000L
 
+/** Tras cerrar una app por tiempo, se ignoran sus avisos de ventana durante este margen. */
+private const val CLOSING_GRACE_MS = 3_000L
+
 /**
  * Servicio de accesibilidad limitado: solo recibe el aviso de que una ventana cambió, y solo de las
  * apps vigiladas. No lee el contenido de la pantalla ni actúa sobre otras apps. Si una app vigilada
@@ -37,6 +40,7 @@ class GuardService : AccessibilityService() {
     private val book get() = (application as EvolveApp).guard
     private val usage by lazy { getSystemService(UsageStatsManager::class.java) }
     private val scheduled = HashMap<String, Long>()
+    private val closingUntil = HashMap<String, Long>()
 
     @Volatile
     private var policies: Map<String, AppPolicy> = emptyMap()
@@ -64,6 +68,8 @@ class GuardService : AccessibilityService() {
         val pkg = event.packageName?.toString() ?: return
         val policy = policies[pkg] ?: return
         val now = System.currentTimeMillis()
+        // Al cerrarla por tiempo, la app aún emite un último cambio de ventana: no es que vuelva a abrirse.
+        if (now < (closingUntil[pkg] ?: 0)) return
         val session = book.session(pkg)
         val away = session != null &&
             wasAwayLongerThan(events(session.checkedAt, now), pkg, session.checkedAt, now, GUARD_GRACE_MS)
@@ -87,7 +93,10 @@ class GuardService : AccessibilityService() {
         scheduled -= pkg
         if (!book.expire(pkg, endsAt)) return
         val now = System.currentTimeMillis()
-        if (isInForeground(events(now - FOREGROUND_LOOKBACK_MS, now), pkg)) openLauncher(EXTRA_TIME_UP_PACKAGE, pkg)
+        if (isInForeground(events(now - FOREGROUND_LOOKBACK_MS, now), pkg)) {
+            closingUntil[pkg] = now + CLOSING_GRACE_MS
+            openLauncher(EXTRA_TIME_UP_PACKAGE, pkg)
+        }
     }
 
     private fun events(from: Long, to: Long): List<RawEvent> {
@@ -145,7 +154,8 @@ class GuardService : AccessibilityService() {
             return enabled.split(':').any { ComponentName.unflattenFromString(it) == self }
         }
 
-        fun settingsIntent(): Intent =
-            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Sin vaciar la tarea, Android volvía a la última pantalla de Ajustes abierta en lugar de esta.
+        fun settingsIntent(): Intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
     }
 }

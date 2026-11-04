@@ -82,7 +82,8 @@ class QuietService : NotificationListenerService() {
             } else {
                 Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
             }
-            return intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Sin vaciar la tarea, Android volvía a la última pantalla de Ajustes abierta en lugar de esta.
+            return intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
     }
 }
